@@ -92,10 +92,8 @@ function OrderedCluster:new(args)
 	return newCluster
 end
 
--- TODO: CHANGE THIS
 -- Adds a new inventory to the cluster. Data for the inventory may be build.
 function OrderedCluster:registerInventory(inv_name)
-	utils.log('fdjsklajsdçlfjd')
 	local inv = OrderedInventory:new{
 		parent = self,
 		name = inv_name,
@@ -112,7 +110,6 @@ function OrderedCluster:registerInventory(inv_name)
 	table.insert(self.invs, inv)
 end
 
--- TODO: CHANGE THIS
 -- Removes an inventory from the cluster. Data from the inventory may be deleted.
 function OrderedCluster:unregisterInventory(inv_name)
 	local inv_pos = self:invPos(inv_name)

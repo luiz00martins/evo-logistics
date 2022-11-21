@@ -138,18 +138,18 @@ function InventoriesPage:refresh()
 						if selected_option == #options then
 							if oldCluster then
 								oldCluster:unregisterInventory(inv_name)
-								oldCluster:save("/logistics_data/"..oldCluster.name)
+								oldCluster:save()
 							end
 						else
 							-- if the previous option is a cluster (instead os 'None').
 							if dropdown.previous_selection ~= #options then
 								oldCluster:unregisterInventory(inv_name)
-								oldCluster:save("/logistics_data/"..oldCluster.name)
+								oldCluster:save()
 							end
 
 							local newCluster = self.clusters[selected_option]
 							newCluster:registerInventory{inv_name = inv_name}
-							newCluster:save("/logistics_data/"..newCluster.name)
+							newCluster:save()
 						end
 
 						dropdown.previous_selection = selected_option

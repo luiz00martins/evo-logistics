@@ -137,7 +137,7 @@ function CraftingCluster:save_data()
 	return textutils.serialize(data)
 end
 
-function CraftingCluster:load(data)
+function CraftingCluster:load_data(data)
 	data = textutils.unserialize(data)
 
 	local profiles = {}

@@ -297,6 +297,10 @@ end
 function AbstractCluster:load_data(data)
 	error('abstract method "load_data" not implemented')
 end
+-- Returns the path to the cluster's data file.
+function AbstractCluster:data_path()
+	error('abstract method "data_path" not implemented')
+end
 -- Returns whether `itemName` exists in the cluster.
 function AbstractCluster:hasItem(itemName)
 	error('abstract method "hasItem" not implemented')
@@ -351,6 +355,32 @@ function AbstractCluster:hasInventory(inv_name)
 	end
 
 	return false
+end
+
+-- Saves the cluster's data to its data path.
+function AbstractCluster:save()
+	local data = self:save_data()
+	local path = self:data_path()
+
+	local file = fs.open(path, 'w')
+	file.write(data)
+	file.close()
+end
+
+-- Loads the cluster's data from its data path.
+function AbstractCluster:load()
+	local path = self:data_path()
+	local file = fs.open(path, "r")
+
+	if not file then
+		return false
+	else
+		local contents = file.readAll()
+		file.close()
+
+		self:load_data(contents)
+		return true
+	end
 end
 
 -- Returning classes.

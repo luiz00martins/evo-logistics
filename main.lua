@@ -87,30 +87,18 @@ local function storeAll()
 	return true
 end
 
+-- FIXME: I've deleted the bulk cluster file, and for some reason now the rest isn't working. Find out why.
 local function save_clusters()
 	for _,cluster in pairs(clusters) do
-		local cluster_data = cluster:save_data()
-		local path = "/logistics_data/"..cluster.name..".data"
-
-		local file = fs.open(path, "w")
-		file.write(cluster_data)
-		file.close()
+		cluster:save()
 	end
 end
 
 local function load_clusters()
 	for _,cluster in pairs(clusters) do
-		local path = "/logistics_data/"..cluster.name..".data"
-
-		local file = fs.open(path, "r")
-		if not file then
-			return false
+		if not cluster:load() then
+			utils.log("File "..cluster:data_path().." not found, skipping.")
 		end
-
-		local contents = file.readAll()
-		file.close()
-
-		cluster:load_data(contents)
 	end
 end
 

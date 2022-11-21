@@ -1,13 +1,14 @@
 local utils = require('/logos.utils')
 local dl_list = require('/logos.logistics.utils.dl_list')
+local core = require('/logos.logistics.storage.core')
 
 local reversed_ipairs = utils.reversed_ipairs
 local table_reduce = utils.table_reduce
 local new_class = utils.new_class
 
-local AbstractState = require('/logos.logistics.storage.core').AbstractState
-local AbstractInventory = require('/logos.logistics.storage.core').AbstractInventory
-local AbstractCluster = require('/logos.logistics.storage.core').AbstractCluster
+local AbstractState = core.AbstractState
+local AbstractInventory = core.AbstractInventory
+local AbstractCluster = core.AbstractCluster
 
 local StandardState = new_class(AbstractState)
 
@@ -429,6 +430,10 @@ function StandardCluster:load_data(data)
 	end
 
 	return true
+end
+
+function StandardCluster:data_path()
+	return "/logistics_data/"..self.name..".data"
 end
 
 function StandardCluster:itemCount(item_name)

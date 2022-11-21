@@ -507,9 +507,18 @@ function BulkCluster:refresh()
 end
 
 function BulkCluster:save_data(path)
+	local inv_names = array_map(self.invs, function(inv) return inv.name end)
+	local inv_items = array_map(self.invs, function(inv)
+		return inv.itemName
+	end)
+	local inv_counts = array_map(self.invs, function(inv)
+		return inv.count
+	end)
+
 	local data = {
-		invNames = self:invNames(),
-		itemCount = self._itemCount,
+		inv_names = inv_names,
+		inv_items = inv_items,
+		inv_counts = inv_counts,
 	}
 
 	return textutils.serialize(data)
@@ -518,23 +527,39 @@ end
 function BulkCluster:load_data(data)
 	data = textutils.unserialize(data)
 
-	local inv_names = data.invNames
+	local inv_names = data.inv_names
+	local inv_items = data.inv_items
+	local inv_counts = data.inv_counts
 	local connected_inventories_names = get_connected_inventories()
 
-	self._itemCount = data.itemCount
+	self._itemCount = {}
 	self.invs = {}
+
 	for i,inv_name in ipairs(inv_names) do
+		local item_name = inv_items[i]
+		local item_count = inv_counts[i]
+
 		if table.contains(connected_inventories_names, inv_name) then
-			self.invs[#self.invs+1] = BulkInv:new{
+			local inv = BulkInv:new{
 				parent = self,
 				name = inv_name,
 			}
+			inv.count = item_count
+
+			table.insert(self.invs, inv)
+			self._itemCount[item_name] = self._itemCount[item_name] or 0
+
+			self._itemCount[item_name] = self._itemCount[item_name] + item_count
 		else
 			-- Inventory not found.
 		end
 	end
 
 	return true
+end
+
+function BulkCluster:data_path()
+	return "/logistics_data/"..self.name..".data"
 end
 
 function BulkCluster:invNames()
