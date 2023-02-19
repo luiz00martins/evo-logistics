@@ -253,11 +253,11 @@ function BulkInv.NORMAL:recount(_)
 end
 
 -- Transfers every item to the target inventory, and returns the amount moved. It does not change the inventories internal models.
-function BulkInv.IO_SLOTS:_bareTransferAll(targetInv)
+function BulkInv.IO_SLOTS:_bareTransferAll(target_inv)
 	local MAX_ATTEMPTS = 3
 
 	local fromState = self.outState
-	local toState = targetInv.inState
+	local toState = target_inv.inState
 	local moved = 0
 
 	-- Move all items to empty, counting the each transter in the process.
@@ -287,15 +287,15 @@ function BulkInv.IO_SLOTS:_bareTransferAll(targetInv)
 		end
 
 		fromState = self.outState
-		toState = targetInv:inputState()
+		toState = target_inv:inputState()
 	end
 
 	return moved
 end
 BulkInv.NORMAL._bareTransferAll = BulkInv.IO_SLOTS._bareTransferAll
 
-function BulkInv.IO_SLOTS:recount(emptyInvs)
-	if not emptyInvs then
+function BulkInv.IO_SLOTS:recount(empty_invs)
+	if not empty_invs then
 		error('No empty storages provided')
 	end
 
@@ -303,7 +303,7 @@ function BulkInv.IO_SLOTS:recount(emptyInvs)
 
 	-- Move all items to empty, counting the each transter in the process.
 	self:update()
-	for _,inv in pairs(emptyInvs) do
+	for _,inv in pairs(empty_invs) do
 		local justMoved = self:_bareTransferAll(inv)
 		moved = moved + justMoved
 
@@ -320,7 +320,7 @@ function BulkInv.IO_SLOTS:recount(emptyInvs)
 	--print(self.outState:itemCount())
 
 	-- Undo all moves.
-	for _,inv in pairs(emptyInvs) do
+	for _,inv in pairs(empty_invs) do
 		local justMoved = inv:_bareTransferAll(self)
 		inv:update()
 		if justMoved == 0 then
@@ -571,8 +571,8 @@ end
 
 BulkCluster.availableItemCount = BulkCluster.itemCount
 
-function BulkCluster:hasItem(itemName)
-	if self.invsWithItem[itemName] then
+function BulkCluster:hasItem(item_name)
+	if self.invsWithItem[item_name] then
 		return true
 	else
 		return false
@@ -684,18 +684,18 @@ function BulkCluster:outputState(item_name)
 	return nil
 end
 
-function BulkCluster:recountItem(itemName)
-	if itemName == 'empty' then
+function BulkCluster:recountItem(item_name)
+	if item_name == 'empty' then
 		error("can't recount empty item")
 	end
-	if not self.invsWithItem[itemName] then
-		error("item '"..itemName.."' does not exist in bulk storage")
+	if not self.invsWithItem[item_name] then
+		error("item '"..item_name.."' does not exist in bulk storage")
 	end
 
-	self._itemCount[itemName] = 0
-	for _,inv in pairs(self.invsWithItem[itemName]) do
+	self._itemCount[item_name] = 0
+	for _,inv in pairs(self.invsWithItem[item_name]) do
 		inv:recount(self.invsWithItem['empty'])
-		self._itemCount[itemName] = self._itemCount[itemName] + inv.count
+		self._itemCount[item_name] = self._itemCount[item_name] + inv.count
 	end
 end
 

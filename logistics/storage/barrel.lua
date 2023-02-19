@@ -15,16 +15,16 @@ local AbstractCluster = core.AbstractCluster
 
 local BarrelState = new_class(StandardState)
 
-function BarrelState:_moveItem(targetState, limit)
+function BarrelState:_moveItem(target_state, limit)
 	-- If the states are the same, there's no need to move an item.
-	if self == targetState then return 0 end
+	if self == target_state then return 0 end
 
 	-- If no limit (or negative limit) was given, then we assume every item is to be moved.
 	if not limit or limit < 0 then
 		limit = self.itemCount()
 	end
 
-	return peripheral.call(self:invName(), 'pushItem', targetState:invName(), self:itemName(), limit)
+	return peripheral.call(self:invName(), 'pushItem', target_state:invName(), self:itemName(), limit)
 end
 
 -- NOTE: These handle the fact that update makes 'state.full = false'. Which means that the call for 'inputState()' inside 'transfer' will result in an infinite loop, because it checks for 'state.full'. If that check disappears, these can go.
@@ -175,14 +175,14 @@ function BarrelInventory:unregisterItem(item_name)
 end
 
 -- Transfers every item to the target inventory, and returns the amount moved. It does not change the inventories internal models.
-function BarrelInventory:_bareTransferAll(targetInv)
-	local moved = peripheral.call(self.name, 'pushItem', targetInv.name)
+function BarrelInventory:_bareTransferAll(target_inv)
+	local moved = peripheral.call(self.name, 'pushItem', target_inv.name)
 
 	return moved
 end
 
-function BarrelInventory:recount(emptyInvs)
-	if not emptyInvs then
+function BarrelInventory:recount(empty_invs)
+	if not empty_invs then
 		error('No empty storages provided')
 	end
 
@@ -190,7 +190,7 @@ function BarrelInventory:recount(emptyInvs)
 
 	-- Move all items to empty, counting the each transter in the process.
 	self:update()
-	for _,inv in pairs(emptyInvs) do
+	for _,inv in pairs(empty_invs) do
 		local justMoved = self:_bareTransferAll(inv)
 		moved = moved + justMoved
 
@@ -204,7 +204,7 @@ function BarrelInventory:recount(emptyInvs)
 	local emptied = (#peripheral.call(self.name, 'items') == 0)
 
 	-- Undo all moves.
-	for _,inv in pairs(emptyInvs) do
+	for _,inv in pairs(empty_invs) do
 		local justMoved = inv:_bareTransferAll(self)
 		if justMoved == 0 then
 			break
@@ -406,8 +406,8 @@ end
 
 BarrelCluster.availableItemCount = BarrelCluster.itemCount
 
-function BarrelCluster:hasItem(itemName)
-	if self.invsWithItem[itemName] then
+function BarrelCluster:hasItem(item_name)
+	if self.invsWithItem[item_name] then
 		return true
 	else
 		return false
@@ -519,18 +519,18 @@ function BarrelCluster:outputState(item_name)
 	return nil
 end
 
-function BarrelCluster:recountItem(itemName)
-	if itemName == 'empty' then
+function BarrelCluster:recountItem(item_name)
+	if item_name == 'empty' then
 		error("can't recount empty item")
 	end
-	if not self.invsWithItem[itemName] then
-		error("item '"..itemName.."' does not exist in bulk storage")
+	if not self.invsWithItem[item_name] then
+		error("item '"..item_name.."' does not exist in bulk storage")
 	end
 
-	self._itemCount[itemName] = 0
-	for _,inv in pairs(self.invsWithItem[itemName]) do
+	self._itemCount[item_name] = 0
+	for _,inv in pairs(self.invsWithItem[item_name]) do
 		inv:recount(self.invsWithItem['empty'])
-		self._itemCount[itemName] = self._itemCount[itemName] + inv.count
+		self._itemCount[item_name] = self._itemCount[item_name] + inv.count
 	end
 end
 

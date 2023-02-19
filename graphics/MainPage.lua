@@ -39,7 +39,7 @@ end
 local MainPage = new_class()
 
 -- FIXME: Use 'callback' argument
-function MainPage:new(main, ioStor, crafting_cluster, storage_clusters, callback)
+function MainPage:new(main, io_stor, crafting_cluster, storage_clusters, callback)
 	local main_page = {}
 
 	local main_frame = main:addFrame("MainPage_main_frame")
@@ -124,10 +124,10 @@ function MainPage:new(main, ioStor, crafting_cluster, storage_clusters, callback
 					local retrieve_from_clusters = function()
 						for _, cluster in ipairs(storage_clusters) do
 							if amount > 0 and cluster._itemCount[item_name] and cluster._itemCount[item_name] > 0 then
-								local moved = transfer(cluster, ioStor, cluster, ioStor, item_name, amount)
+								local moved = transfer(cluster, io_stor, cluster, io_stor, item_name, amount)
 								if moved == 0 then
-									ioStor:refresh()
-									moved = transfer(cluster, ioStor, cluster, ioStor, item_name, amount)
+									io_stor:refresh()
+									moved = transfer(cluster, io_stor, cluster, io_stor, item_name, amount)
 								end
 
 								total_moved = total_moved + moved

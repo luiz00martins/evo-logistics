@@ -164,7 +164,7 @@ end
 AbstractState.itemIsAvailable = AbstractState.hasItem
 
 ---@diagnostic disable-next-line: unused-local
-function AbstractState:_moveItem(targetState, limit)
+function AbstractState:_moveItem(target_state, limit)
 	error('abstract method "_moveItem" not implemented')
 end
 
@@ -289,7 +289,7 @@ function AbstractCluster:data_path()
 end
 -- Returns whether `itemName` exists in the cluster.
 ---@diagnostic disable-next-line: unused-local
-function AbstractCluster:hasItem(itemName)
+function AbstractCluster:hasItem(item_name)
 	error('abstract method "hasItem" not implemented')
 end
 -- Returns whether `item_name` is available (for output) in the cluster.
@@ -303,22 +303,22 @@ function AbstractCluster:itemNames()
 end
 -- Is called when the cluster is the target of a moved item. This should be used for bookeeping, such as updating the amount of items in storage and internal data structures.
 ---@diagnostic disable-next-line: unused-local
-function AbstractCluster:_addedTo(state, itemName, count)
+function AbstractCluster:_addedTo(state, item_name, count)
 	error('abstract method "_addedTo" not implemented')
 end
 -- Is called when the cluster is the origin of a moved item. This should be used for bookeeping, such as updating the amount of items in storage and internal data structures.
 ---@diagnostic disable-next-line: unused-local
-function AbstractCluster:_removedFrom(state, itemName, count)
+function AbstractCluster:_removedFrom(state, item_name, count)
 	error('abstract method "_removedFrom" not implemented')
 end
 -- Returns a state where `itemName` can be inserted to. Returns 'nil' if none are available.
 ---@diagnostic disable-next-line: unused-local
-function AbstractCluster:inputState(itemName)
+function AbstractCluster:inputState(item_name)
 	error('abstract method "inputState" not implemented')
 end
 -- Returns a state from which `itemName` can be drawn from. Returns 'nil' if none are available.
 ---@diagnostic disable-next-line: unused-local
-function AbstractCluster:outputState(itemName)
+function AbstractCluster:outputState(item_name)
 	error('abstract method "outputState" not implemented')
 end
 -- Adds a new inventory to the cluster. Data for the inventory may be build.

@@ -403,9 +403,9 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 	end
 end
 
-function CraftingCluster:waitCrafting(inv, toState, item_name, amount)
+function CraftingCluster:waitCrafting(inv, to_state, item_name, amount)
 	-- TODO: Implement 'AbstractState:itemCount(item_name)' (with the 'item_name' argument).
-	while toState:itemCount() < amount do
+	while to_state:itemCount() < amount do
 		inv:refresh()
 		os.sleep(0)
 	end

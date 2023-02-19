@@ -33,13 +33,13 @@ function StandardState:update()
 	self.full = false
 end
 
-function StandardState:_moveItem(targetState, limit)
+function StandardState:_moveItem(target_state, limit)
 	local item = self:item()
 
 	-- If there`s no item to move, return 0.
 	if not item then return 0 end
 	-- If the states are the same, there's no need to move an item.
-	if self == targetState then return 0 end
+	if self == target_state then return 0 end
 
 	-- If no limit (or negative limit) was given, then we assume every item is to be moved.
 	if not limit or limit < 0 then
@@ -49,7 +49,7 @@ function StandardState:_moveItem(targetState, limit)
 	-- Moving item
 	local moved = peripheral.call(
 			self:invName(), 'pushItems',
-			targetState:invName(), self.slot, limit, targetState.slot
+			target_state:invName(), self.slot, limit, target_state.slot
 		)
 
 	return moved
@@ -90,20 +90,20 @@ function StandardState:_handleItemRemoved(item_name, amount, _)
 	end
 end
 
-function StandardState:bareMoveItem(targetState, limit)
+function StandardState:bareMoveItem(target_state, limit)
 	return peripheral.call(
 		self:invName(), "pushItems",
-		targetState:invName(), self.slot, limit, targetState.slot
+		target_state:invName(), self.slot, limit, target_state.slot
 	)
 end
 
-function StandardState:moveItem(targetState, limit)
+function StandardState:moveItem(target_state, limit)
 	local super = getmetatable(StandardState)
 
 	-- If the slot is full, no item can be moved.
-	if targetState.full then return 0 end
+	if target_state.full then return 0 end
 
-	local moved = super.moveItem(self, targetState, limit)
+	local moved = super.moveItem(self, target_state, limit)
 
 	-- If some item was moved, then the state is not empty anymore.
 	if moved > 0 then
@@ -111,7 +111,7 @@ function StandardState:moveItem(targetState, limit)
 	end
 	-- If not all items that could be moved were moved, the target state filled up.
 	if moved ~= limit and self:hasItem() then
-		targetState.full = true
+		target_state.full = true
 	end
 
 	return moved

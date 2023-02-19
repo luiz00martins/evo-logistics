@@ -122,15 +122,15 @@ function OrderedCluster:unregisterInventory(inv_name)
 end
 
 -- Swaps the item in `fromState` with the item in `toState`.
-function OrderedCluster:swap(fromState, toCluster, toState)
-	if fromState == toState then
+function OrderedCluster:swap(from_state, to_cluster, to_state)
+	if from_state == to_state then
 		return
-	elseif not fromState:hasItem() then
+	elseif not from_state:hasItem() then
 		--toCluster:move(toState, self, fromState)
-		transfer(toState, fromState, toCluster, self)
-	elseif not toState:hasItem() then
+		transfer(to_state, from_state, to_cluster, self)
+	elseif not to_state:hasItem() then
 		--self:move(fromState, toCluster, toState)
-		transfer(fromState, toState, self, toCluster)
+		transfer(from_state, to_state, self, to_cluster)
 	else
 		local swapState = self:inputState('empty')
 
@@ -139,11 +139,11 @@ function OrderedCluster:swap(fromState, toCluster, toState)
 		end
 
 		--self:move(fromState, self, swapState)
-		transfer(fromState, swapState, self, self)
+		transfer(from_state, swapState, self, self)
 		--toCluster:move(toState, self, fromState)
-		transfer(toState, fromState, toCluster, self)
+		transfer(to_state, from_state, to_cluster, self)
 		--self:move(swapState, toCluster, toState)
-		transfer(swapState, toState, self, toCluster)
+		transfer(swapState, to_state, self, to_cluster)
 	end
 end
 
