@@ -13,16 +13,16 @@ local AbstractCluster = core.AbstractCluster
 local StandardState = new_class(AbstractState)
 
 function StandardState:new (args)
-	local newState = AbstractState:new(args)
+	local newStandardState = AbstractState:new(args)
 
 	-- Setting default.
 	if args.full == nil then args.full = false end
 
-	newState.full = args.full
+	newStandardState.full = args.full
 	--newState.maxOutput = args.maxOutput or peripheral.call(newState:invName(), 'getItemLimit', args.slot)
 
-	setmetatable(newState, self)
-	return newState
+	setmetatable(newStandardState, self)
+	return newStandardState
 end
 
 StandardState.hasItemAvailable = StandardState.hasItem
@@ -123,19 +123,19 @@ end
 local StandardInventory = new_class(AbstractInventory)
 
 function StandardInventory:new(args)
-	local newInventory = AbstractInventory:new(args)
+	local newStandardInventory = AbstractInventory:new(args)
 
 	-- Could not find inventory.
-	if not newInventory then
+	if not newStandardInventory then
 		return nil
 	end
 
-	newInventory._itemCount = {}
+	newStandardInventory.item_count = {}
 	-- Map<item_name, DL_List<State>>: Stores all of an item's states. For O(1) access to a state that has a specific item.
-	newInventory.itemStates = {}
+	newStandardInventory.item_states = {}
 
-	setmetatable(newInventory, self)
-	return newInventory
+	setmetatable(newStandardInventory, self)
+	return newStandardInventory
 end
 
 function StandardInventory:inputState(item_name, include_empty)
@@ -144,7 +144,7 @@ function StandardInventory:inputState(item_name, include_empty)
 	item_name = item_name or 'empty'
 
 	if item_name ~= 'empty' then
-		local item_states = self.itemStates[item_name]
+		local item_states = self.item_states[item_name]
 		if item_states then
 			local item_state = item_states.last
 			if item_state and not item_state.full then
@@ -154,7 +154,7 @@ function StandardInventory:inputState(item_name, include_empty)
 	end
 
 	if item_name == 'empty' or include_empty then
-		local item_states = self.itemStates['empty']
+		local item_states = self.item_states['empty']
 		if item_states then
 			local item_state = item_states.first
 			if item_state then
@@ -168,12 +168,12 @@ function StandardInventory:outputState(item_name)
 	local item_states
 
 	if not item_name then
-		item_name, item_states = next(self.itemStates)
+		item_name, item_states = next(self.item_states)
 		if item_name == 'empty' then
-			item_name, item_states = next(self.itemStates, 'empty')
+			item_name, item_states = next(self.item_states, 'empty')
 		end
 	else
-		item_states = self.itemStates[item_name]
+		item_states = self.item_states[item_name]
 	end
 
 	if item_states then
@@ -186,24 +186,24 @@ end
 
 function StandardInventory:itemCount(item_name)
 	if not item_name then
-		return table_reduce(self._itemCount, function(a,b) return a+b end) - (self._itemCount['empty'] or 0)
+		return table_reduce(self.item_count, function(a,b) return a+b end) - (self.item_count['empty'] or 0)
 	end
 
-	return self._itemCount[item_name] or 0
+	return self.item_count[item_name] or 0
 end
 
 StandardInventory.availableItemCount = StandardInventory.itemCount
 
 function StandardInventory:hasItem(item_name)
 	if not item_name then
-		item_name, _ = next(self.itemStates)
+		item_name, _ = next(self.item_states)
 		if item_name == 'empty' then
-			item_name, _ = next(self.itemStates, 'empty')
+			item_name, _ = next(self.item_states, 'empty')
 		end
 
 		return item_name ~= nil
 	else
-		return self.itemStates[item_name] ~= nil
+		return self.item_states[item_name] ~= nil
 	end
 end
 
@@ -212,7 +212,7 @@ StandardInventory.itemIsAvailable = StandardInventory.hasItem
 function StandardInventory:itemNames()
 	local item_names = {}
 
-	for item_name, _ in pairs(self.itemStates) do
+	for item_name, _ in pairs(self.item_states) do
 		if item_name ~= 'empty' then
 			table.insert(item_names, item_name)
 		end
@@ -242,7 +242,7 @@ function StandardInventory:catalog()
 end
 
 function StandardInventory:_cleanUp()
-	for _,item_states in pairs(self.itemStates) do
+	for _,item_states in pairs(self.item_states) do
 		local states_list = {}
 		for state in item_states:iterate() do
 			table.insert(states_list, state)
@@ -259,8 +259,8 @@ function StandardInventory:refresh()
 	self:_cleanUp()
 	local items = peripheral.call(self.name, "list")
 
-	local itemCount = {}
-	local itemStates = {}
+	local item_count = {}
+	local item_states = {}
 
 	for slot,state in ipairs(self.states) do
 		state._item = items[slot]
@@ -269,23 +269,23 @@ function StandardInventory:refresh()
 		local item_name = state:itemName()
 
 		-- Creating item counter if there isn't one for the item.
-		itemCount[item_name] = itemCount[item_name] or 0
+		item_count[item_name] = item_count[item_name] or 0
 		-- Creating item states list if there isn't one for the item.
-		itemStates[item_name] = itemStates[item_name] or dl_list()
+		item_states[item_name] = item_states[item_name] or dl_list()
 
 		-- Adding item the item states list.
-		itemStates[item_name]:push(state)
+		item_states[item_name]:push(state)
 		-- Adding item amount to counter.
 		if state:hasItem() then
-			itemCount[item_name] = itemCount[item_name] + state:itemCount()
+			item_count[item_name] = item_count[item_name] + state:itemCount()
 		else
 			-- Each empty slot count +1 to the 'empty' counter.
-			itemCount[item_name] = itemCount[item_name] + 1
+			item_count[item_name] = item_count[item_name] + 1
 		end
 	end
 
-	self._itemCount = itemCount
-	self.itemStates = itemStates
+	self.item_count = item_count
+	self.item_states = item_states
 end
 
 function StandardInventory:_handleItemAdded(item_name, amount, previous_handlers)
@@ -294,22 +294,22 @@ function StandardInventory:_handleItemAdded(item_name, amount, previous_handlers
 	local state = previous_handlers[1]
 
 	-- Updating item count.
-	self._itemCount[item_name] = (self._itemCount[item_name] or 0) + amount
+	self.item_count[item_name] = (self.item_count[item_name] or 0) + amount
 
 	-- If the amount if items in the state == the amount moved, then it was previously empty.
 	if state:itemCount() == amount then
 		-- So, we gotta remove it from the 'empty' count and list.
-		self._itemCount['empty'] = self._itemCount['empty'] - 1
-		self.itemStates['empty']:remove(state)
+		self.item_count['empty'] = self.item_count['empty'] - 1
+		self.item_states['empty']:remove(state)
 
 		-- Make sure the 'empty' list is removed if there's no states anymore.
-		if self.itemStates['empty'].length == 0 then
-			self.itemStates['empty'] = nil
+		if self.item_states['empty'].length == 0 then
+			self.item_states['empty'] = nil
 		end
 
 		-- and add it to the item's list.
-		self.itemStates[item_name] = self.itemStates[item_name] or dl_list()
-		self.itemStates[item_name]:push(state)
+		self.item_states[item_name] = self.item_states[item_name] or dl_list()
+		self.item_states[item_name]:push(state)
 	end
 end
 
@@ -317,11 +317,11 @@ function StandardInventory:_handleItemRemoved(item_name, amount, previous_handle
 	if amount == 0 then return end
 
 	-- Updating item count.
-	self._itemCount[item_name] = self._itemCount[item_name] - amount
+	self.item_count[item_name] = self.item_count[item_name] - amount
 
 	-- If there's no item left delete the counter for that item.
-	if self._itemCount[item_name] == 0 then
-		self._itemCount[item_name] = nil
+	if self.item_count[item_name] == 0 then
+		self.item_count[item_name] = nil
 	end
 
 	local state = previous_handlers[1]
@@ -329,19 +329,19 @@ function StandardInventory:_handleItemRemoved(item_name, amount, previous_handle
 	-- If all items were removed from the slot, we need add to the remove from the item's count/list, and add to the 'empty' item's count/list.
 	if not state:hasItem() then
 		-- Remove state from the item's list.
-		self.itemStates[item_name]:remove(state)
+		self.item_states[item_name]:remove(state)
 
 		-- Make sure the item list is removed if there's no states anymore.
-		if self.itemStates[item_name].length == 0 then
-			self.itemStates[item_name] = nil
+		if self.item_states[item_name].length == 0 then
+			self.item_states[item_name] = nil
 		end
 
 		-- Add it to the 'empty' list.
-		self.itemStates['empty'] = self.itemStates['empty'] or dl_list()
-		self.itemStates['empty']:unshift(state)
+		self.item_states['empty'] = self.item_states['empty'] or dl_list()
+		self.item_states['empty']:unshift(state)
 
 		-- Add to counter
-		self._itemCount['empty'] = (self._itemCount['empty'] or 0) + 1
+		self.item_count['empty'] = (self.item_count['empty'] or 0) + 1
 	end
 end
 
@@ -350,12 +350,12 @@ end
 
 local StandardCluster = new_class(AbstractCluster)
 function StandardCluster:new(args)
-	local newCluster = AbstractCluster:new(args)
+	local newStandardCluster = AbstractCluster:new(args)
 
-	newCluster._itemCount = {}
+	newStandardCluster.item_count = {}
 
-	setmetatable(newCluster, StandardCluster)
-	return newCluster
+	setmetatable(newStandardCluster, StandardCluster)
+	return newStandardCluster
 end
 
 -- TODO: CHANGE THIS
@@ -396,18 +396,18 @@ function StandardCluster:outputState(item_name)
 end
 
 function StandardCluster:_addInventoryContribution(inv)
-	for item_name,item_count in pairs(inv._itemCount) do
-		self._itemCount[item_name] = self._itemCount[item_name] or 0
-		self._itemCount[item_name] = self._itemCount[item_name] + item_count
+	for item_name,item_count in pairs(inv.item_count) do
+		self.item_count[item_name] = self.item_count[item_name] or 0
+		self.item_count[item_name] = self.item_count[item_name] + item_count
 	end
 end
 
 function StandardCluster:_removeInventoryContribution(inv)
-	for item_name,item_count in pairs(inv._itemCount) do
-		self._itemCount[item_name] = self._itemCount[item_name] - item_count
+	for item_name,item_count in pairs(inv.item_count) do
+		self.item_count[item_name] = self.item_count[item_name] - item_count
 
-		if self._itemCount[item_name] == 0 then
-			self._itemCount[item_name] = nil
+		if self.item_count[item_name] == 0 then
+			self.item_count[item_name] = nil
 		end
 	end
 end
@@ -421,7 +421,7 @@ function StandardCluster:refresh()
 end
 
 function StandardCluster:catalog()
-	self._itemCount = {}
+	self.item_count = {}
 
 	for _,inv in pairs(self.invs) do
 		inv:catalog()
@@ -460,10 +460,10 @@ end
 
 function StandardCluster:itemCount(item_name)
 	if not item_name then
-		return table_reduce(self._itemCount, function(a,b) return a+b end) - (self._itemCount['empty'] or 0)
+		return table_reduce(self.item_count, function(a,b) return a+b end) - (self.item_count['empty'] or 0)
 	end
 
-	return self._itemCount[item_name] or 0
+	return self.item_count[item_name] or 0
 end
 
 StandardCluster.availableItemCount = StandardCluster.itemCount
@@ -482,7 +482,7 @@ StandardCluster.itemIsAvailable = StandardCluster.hasItem
 
 function StandardCluster:itemNames()
 	local item_names = {}
-	for item_name, _ in pairs(self._itemCount) do
+	for item_name, _ in pairs(self.item_count) do
 		item_names[#item_names+1] = item_name
 	end
 	return item_names
@@ -492,17 +492,17 @@ function StandardCluster:_handleItemAdded(item_name, amount, _)
 	if amount == 0 then return true end
 
 	-- Updating item count.
-	self._itemCount[item_name] = (self._itemCount[item_name] or 0) + amount
+	self.item_count[item_name] = (self.item_count[item_name] or 0) + amount
 end
 
 function StandardCluster:_handleItemRemoved(item_name, amount, _)
 	if amount == 0 then return true end
 
-	self._itemCount[item_name] = self._itemCount[item_name] - amount
+	self.item_count[item_name] = self.item_count[item_name] - amount
 
 	-- If there's no item left delete the counter for that item.
-	if self._itemCount[item_name] == 0 then
-		self._itemCount[item_name] = nil
+	if self.item_count[item_name] == 0 then
+		self.item_count[item_name] = nil
 	end
 end
 

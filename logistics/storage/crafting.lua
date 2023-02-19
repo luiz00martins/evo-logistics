@@ -114,8 +114,8 @@ function CraftingCluster:new(args)
 
 	newCraftingCluster.storage_clusters = args.storage_clusters
 	newCraftingCluster.profiles = {}
-	newCraftingCluster.itemRecipes = {}
-	newCraftingCluster.recipeProfiles = {}
+	newCraftingCluster.item_recipes = {}
+	newCraftingCluster.recipe_profiles = {}
 
 	setmetatable(newCraftingCluster, self)
 	return newCraftingCluster
@@ -157,14 +157,14 @@ function CraftingCluster:_addProfileData(profile)
 		for _,slot_data in pairs(recipe.slots) do
 			if slot_data.type == 'output' then
 				local item_name = slot_data.item_name
-				self._itemCount[item_name] = 0
+				self.item_count[item_name] = 0
 
-				self.itemRecipes[item_name] = self.itemRecipes[item_name] or {}
-				self.itemRecipes[item_name][#self.itemRecipes[item_name]+1] = recipe
+				self.item_recipes[item_name] = self.item_recipes[item_name] or {}
+				self.item_recipes[item_name][#self.item_recipes[item_name]+1] = recipe
 			end
 		end
 
-		self.recipeProfiles[recipe] = profile
+		self.recipe_profiles[recipe] = profile
 	end
 end
 
@@ -179,8 +179,8 @@ end
 
 function CraftingCluster:refresh()
 	StandardCluster.refresh(self)
-	self.itemRecipes = {}
-	self.recipeProfiles = {}
+	self.item_recipes = {}
+	self.recipe_profiles = {}
 
 	for _,profile in ipairs(self.profiles) do
 		self:_addProfileData(profile)
@@ -209,7 +209,7 @@ function CraftingCluster:getAvailableItems(storage_clusters)
 	local items = {}
 
 	for _,cluster in ipairs(storage_clusters) do
-		for item_name,count in pairs(cluster._itemCount) do
+		for item_name,count in pairs(cluster.item_count) do
 			if not items[item_name] then
 				items[item_name] = 0
 			end
@@ -227,7 +227,7 @@ function CraftingCluster:calculateMissingItems(item_name, amount, craft_list)
 	craft_list = craft_list or {}
 
 	-- find available crafting
-	local recipes = self.itemRecipes[item_name]
+	local recipes = self.item_recipes[item_name]
 	if not recipes then
 		table.insert(missing_items, {
 			name = item_name,
@@ -257,7 +257,7 @@ function CraftingCluster:calculateMissingItems(item_name, amount, craft_list)
 	for _item_name,amount_needed in pairs(inputs_needed) do
 		amount_needed = amount_needed * crafting_count
 
-		local item_counts = table_map(self.storage_clusters, function(cluster) return cluster._itemCount[_item_name] end)
+		local item_counts = table_map(self.storage_clusters, function(cluster) return cluster.item_count[_item_name] end)
 		local total_stored = table_reduce(item_counts, function(a, b) return a + b end, 0)
 
 		if total_stored < amount_needed then
@@ -289,7 +289,7 @@ function CraftingCluster:createCraftingTree(item_name, amount, craft_list)
 	craft_list = craft_list or {}
 
 	-- find available crafting
-	local recipes = self.itemRecipes[item_name] or error('No recipes found for '..item_name)
+	local recipes = self.item_recipes[item_name] or error('No recipes found for '..item_name)
 	local recipe = recipes[1]
 
 	local output_crafted = 0
@@ -344,7 +344,7 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 
 	local recipe = crafting_tree.this.recipe
 	local crafting_count = crafting_tree.this.count
-	local profile = self.recipeProfiles[recipe]
+	local profile = self.recipe_profiles[recipe]
 	local inv_type = profile.inv_type
 	local invs = array_filter(self.invs, function(inv) if inventory_type(inv.name) == inv_type then return true end end)
 

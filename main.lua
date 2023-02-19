@@ -82,8 +82,8 @@ local function storeAll()
 		end
 	end
 
-	for itemName,_ in pairs(notStored) do
-		utils.log("WARNING: '"..itemName.."' not stored (inventory full)")
+	for item_name,_ in pairs(notStored) do
+		utils.log("WARNING: '"..item_name.."' not stored (inventory full)")
 	end
 
 	return true

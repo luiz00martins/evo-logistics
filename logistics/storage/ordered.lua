@@ -16,10 +16,10 @@ local transfer = core.transfer
 local OrderedState = new_class(StandardState)
 
 function OrderedState:new(args)
-	local newState = StandardState:new(args)
+	local newOrderedState = StandardState:new(args)
 
-	setmetatable(newState, OrderedState)
-	return newState
+	setmetatable(newOrderedState, OrderedState)
+	return newOrderedState
 end
 
 function OrderedState:invPos()
@@ -44,19 +44,19 @@ end
 local OrderedInventory = new_class(StandardInventory)
 
 function OrderedInventory:new(args)
-	local newInventory = StandardInventory:new(args)
+	local newOrderedInventory = StandardInventory:new(args)
 
 	-- Could not find inventory.
-	if not newInventory then
+	if not newOrderedInventory then
 		return nil
 	end
 
 	if args.pos == nil then error("missing parameter `pos`") end
 
-	newInventory.pos = args.pos
+	newOrderedInventory.pos = args.pos
 
-	setmetatable(newInventory, self)
-	return newInventory
+	setmetatable(newOrderedInventory, self)
+	return newOrderedInventory
 end
 
 function OrderedInventory:_repopulate()
@@ -83,10 +83,10 @@ OrderedInventory.refresh = OrderedInventory.catalog
 
 local OrderedCluster = new_class(StandardCluster)
 function OrderedCluster:new(args)
-	local newCluster = StandardCluster:new(args)
+	local newOrderedCluster = StandardCluster:new(args)
 
-	setmetatable(newCluster, OrderedCluster)
-	return newCluster
+	setmetatable(newOrderedCluster, OrderedCluster)
+	return newOrderedCluster
 end
 
 -- Adds a new inventory to the cluster. Data for the inventory may be build.
@@ -149,7 +149,7 @@ end
 
 -- Sorts the storage.
 function OrderedCluster:sort()
-	if not self._itemCount['empty'] == 0 then
+	if not self.item_count['empty'] == 0 then
 		error("there's no space for swapping")
 	end
 
@@ -157,7 +157,7 @@ function OrderedCluster:sort()
 	local pos = 1
 	local cmp = function(a, b) return a > b end
 
-	for _,itemName in ipairs(get_order(self._itemCount, cmp)) do
+	for _,itemName in ipairs(get_order(self.item_count, cmp)) do
 		if itemName ~= 'empty' then
 			local all_states = {}
 			local item_states = {}
@@ -167,8 +167,8 @@ function OrderedCluster:sort()
 					all_states[#all_states+1] = state
 				end
 
-				if inv.itemStates[itemName] then
-					for state in inv.itemStates[itemName]:iterate() do
+				if inv.item_states[itemName] then
+					for state in inv.item_states[itemName]:iterate() do
 						item_states[#item_states+1] = state
 					end
 				end
@@ -194,7 +194,7 @@ function OrderedCluster:packItem(item_name)
 	local item_states = {}
 	for _, inv in ipairs(self.invs) do
 		if inv:hasItem(item_name) then
-			for state in inv.itemStates[item_name]:iterate() do
+			for state in inv.item_states[item_name]:iterate() do
 				item_states[#item_states+1] = state
 			end
 		end
@@ -218,9 +218,9 @@ function OrderedCluster:packItem(item_name)
 end
 
 function OrderedCluster:pack()
-	for itemName,itemCount in pairs(self._itemCount) do
-		if itemName ~= 'empty' and itemCount > 0 then
-			self:packItem(itemName)
+	for item_name,item_name in pairs(self.item_count) do
+		if item_name ~= 'empty' and item_name > 0 then
+			self:packItem(item_name)
 		end
 	end
 end

@@ -48,28 +48,28 @@ end
 local BarrelInventory = new_class(AbstractInventory)
 
 function BarrelInventory:new(args)
-	local newInventory = AbstractInventory:new(args)
+	local newBarrelInventory = AbstractInventory:new(args)
 
 	-- Could not find inventory.
-	if not newInventory then
+	if not newBarrelInventory then
 		return nil
 	end
 
-	if not table_contains(peripheral.getMethods(newInventory.name), 'items') then
-		error('Inventory ' .. newInventory.name .. ' is not a valid barrel type.')
+	if not table_contains(peripheral.getMethods(newBarrelInventory.name), 'items') then
+		error('Inventory ' .. newBarrelInventory.name .. ' is not a valid barrel type.')
 	end
 
-	newInventory.state = BarrelState:new{
-		parent = newInventory,
+	newBarrelInventory.state = BarrelState:new{
+		parent = newBarrelInventory,
 		slot = 1,
 		item = args.item or nil,
 		count = args.item and args.item.count or 0,
 		full = false,
 	}
 
-	setmetatable(newInventory, BarrelInventory)
+	setmetatable(newBarrelInventory, BarrelInventory)
 
-	return newInventory
+	return newBarrelInventory
 end
 
 function BarrelInventory:catalog()
@@ -77,9 +77,9 @@ function BarrelInventory:catalog()
 
 	local _, item = next(items)
 	if item == nil then
-		self.itemName = 'empty'
+		self.item_name = 'empty'
 	else
-		self.itemName = item.name
+		self.item_name = item.name
 	end
 
 	local count = 0
@@ -101,9 +101,9 @@ function BarrelInventory:refresh()
 
 	local _, item = next(items)
 	if item == nil then
-		self.itemName = 'empty'
+		self.item_name = 'empty'
 	else
-		self.itemName = item.name
+		self.item_name = item.name
 	end
 
 	-- NOTE: We do not update the amount of items here, as we would need to recount them, which is expensive.
@@ -151,10 +151,10 @@ function BarrelInventory:registerItem(item_name)
 	end
 
 	if self:hasItem() then
-		error('Bulk Inventory cannot register item '..utils.tostring(item_name)..', as it still has item '..self.itemName)
+		error('Bulk Inventory cannot register item '..utils.tostring(item_name)..', as it still has item '..self.item_name)
 	end
 
-	self.itemName = item_name
+	self.item_name = item_name
 end
 
 function BarrelInventory:unregisterItem(item_name)
@@ -162,16 +162,16 @@ function BarrelInventory:unregisterItem(item_name)
 		error('Item name cannot be '..item_name)
 	end
 
-	item_name = item_name or self.itemName
-	if item_name ~= self.itemName then
-		error('Cannot unregister '..utils.tostring(item_name)..' from inventory registered for '..self.itemName)
+	item_name = item_name or self.item_name
+	if item_name ~= self.item_name then
+		error('Cannot unregister '..utils.tostring(item_name)..' from inventory registered for '..self.item_name)
 	end
 
 	if self:hasItem() then
 		error('Cannot unregister '..item_name..' from inventory with '..self.count..' items')
 	end
 
-	self.itemName = 'empty'
+	self.item_name = 'empty'
 end
 
 -- Transfers every item to the target inventory, and returns the amount moved. It does not change the inventories internal models.
@@ -212,7 +212,7 @@ function BarrelInventory:recount(empty_invs)
 	end
 
 	if not emptied then
-		error("not enough empty space in bulk storage to count "..self.itemName)
+		error("not enough empty space in bulk storage to count "..self.item_name)
 	end
 
 	self.state._item.count = moved - 1
@@ -221,13 +221,13 @@ end
 
 local BarrelCluster = new_class(AbstractCluster)
 function BarrelCluster:new (args)
-	local newCluster = AbstractCluster:new(args)
+	local newBarrelCluster = AbstractCluster:new(args)
 
- 	newCluster._itemCount = {}
-	newCluster.invsWithItem = {}
+ 	newBarrelCluster.item_count = {}
+	newBarrelCluster.invs_with_item = {}
 
-	setmetatable(newCluster, self)
-	return newCluster
+	setmetatable(newBarrelCluster, self)
+	return newBarrelCluster
 end
 
 -- Catalogs the cluster (initial setup).
@@ -237,29 +237,29 @@ end
 function BarrelCluster:setItemInventory(inv_name, item_name)
 	for _,inv in ipairs(self.invs) do
 		if inv.name == inv_name then
-			if inv:hasItem() and inv.itemName ~= item_name then
-				error('Trying to set inventory '..inv_name..' to item '..item_name..', but i\'s already with item '..inv.itemName)
+			if inv:hasItem() and inv.item_name ~= item_name then
+				error('Trying to set inventory '..inv_name..' to item '..item_name..', but i\'s already with item '..inv.item_name)
 			end
 
-			if inv.itemName then
+			if inv.item_name then
 				-- Removing from previous.
-				for i,invv in ipairs(self.invsWithItem[inv.itemName]) do
+				for i,invv in ipairs(self.invs_with_item[inv.item_name]) do
 					if inv == invv then
-						table.remove(self.invsWithItem[inv.itemName], i)
-						if #self.invsWithItem[inv.itemName] == 0 then
-							self.invsWithItem[inv.itemName] = nil
+						table.remove(self.invs_with_item[inv.item_name], i)
+						if #self.invs_with_item[inv.item_name] == 0 then
+							self.invs_with_item[inv.item_name] = nil
 						end
-						inv.itemName = nil
+						inv.item_name = nil
 						break
 					end
 				end
 			end
 
 			-- Adding new one.
-			self.invsWithItem[item_name] = self.invsWithItem[item_name] or {}
-			self._itemCount[item_name] = self._itemCount[item_name] or 0
-			inv.itemName = item_name
-			table.insert(self.invsWithItem[item_name], inv)
+			self.invs_with_item[item_name] = self.invs_with_item[item_name] or {}
+			self.item_count[item_name] = self.item_count[item_name] or 0
+			inv.item_name = item_name
+			table.insert(self.invs_with_item[item_name], inv)
 
 			return
 		end
@@ -279,20 +279,20 @@ function BarrelCluster:registerInventory(args)
 	local inv = self:_createInventory(args)
 	inv:catalog()
 
-	local item_name = inv.itemName
+	local item_name = inv.item_name
 
 	-- Creating stats for item if it doesn't exist.
-	if not self.invsWithItem[item_name] then self.invsWithItem[item_name] = {} end
-	if not self._itemCount[item_name] then self._itemCount[item_name] = 0 end
+	if not self.invs_with_item[item_name] then self.invs_with_item[item_name] = {} end
+	if not self.item_count[item_name] then self.item_count[item_name] = 0 end
 
 	table.insert(self.invs, inv)
-	table.insert(self.invsWithItem[item_name], inv)
+	table.insert(self.invs_with_item[item_name], inv)
 
 	if item_name == 'empty' then
-		self._itemCount['empty'] = self._itemCount['empty'] + 1
+		self.item_count['empty'] = self.item_count['empty'] + 1
 	else
-		inv:recount(self.invsWithItem['empty'])
-		self._itemCount[item_name] = self._itemCount[item_name] + inv:itemCount()
+		inv:recount(self.invs_with_item['empty'])
+		self.item_count[item_name] = self.item_count[item_name] + inv:itemCount()
 	end
 end
 
@@ -312,19 +312,19 @@ function BarrelCluster:unregisterInventory(inv_name)
 
 	table.remove(self.invs, pos)
 
-	for p,i in ipairs(self.invsWithItem[inv.itemName]) do
+	for p,i in ipairs(self.invs_with_item[inv.item_name]) do
 		if i == inv then
 			pos = p
 			break
 		end
 	end
-	table.remove(self.invsWithItem[inv.itemName], pos)
+	table.remove(self.invs_with_item[inv.item_name], pos)
 
 	-- HACK: This is a hack to attend for the name bug inside ´BulkInv:new´.
-	if inv.itemName == 'empty' or not self._itemCount[inv.itemName] or self._itemCount[inv.itemName] == 0 then
-		self._itemCount['empty'] = self._itemCount['empty'] - 1
+	if inv.item_name == 'empty' or not self.item_count[inv.item_name] or self.item_count[inv.item_name] == 0 then
+		self.item_count['empty'] = self.item_count['empty'] - 1
 	else
-		self._itemCount[inv.itemName] = self._itemCount[inv.itemName] - inv.count
+		self.item_count[inv.item_name] = self.item_count[inv.item_name] - inv.count
 	end
 end
 
@@ -337,7 +337,7 @@ end
 function BarrelCluster:saveData()
 	local inv_names = array_map(self.invs, function(inv) return inv.name end)
 	local inv_items = array_map(self.invs, function(inv)
-		return inv.itemName
+		return inv.item_name
 	end)
 	local inv_counts = array_map(self.invs, function(inv)
 		return inv:itemCount()
@@ -360,9 +360,9 @@ function BarrelCluster:loadData(data)
 	local inv_counts = data.inv_counts
 	local connected_inventories_names = get_connected_inventories()
 
-	self._itemCount = {}
+	self.item_count = {}
 	self.invs = {}
-	self.invsWithItem = {}
+	self.invs_with_item = {}
 
 	for i,inv_name in ipairs(inv_names) do
 		local item_name = inv_items[i]
@@ -376,10 +376,10 @@ function BarrelCluster:loadData(data)
 			}
 
 			table.insert(self.invs, inv)
-			self._itemCount[item_name] = self._itemCount[item_name] or 0
-			self._itemCount[item_name] = self._itemCount[item_name] + item_count
-			self.invsWithItem[item_name] = self.invsWithItem[item_name] or {}
-			table.insert(self.invsWithItem[item_name], inv)
+			self.item_count[item_name] = self.item_count[item_name] or 0
+			self.item_count[item_name] = self.item_count[item_name] + item_count
+			self.invs_with_item[item_name] = self.invs_with_item[item_name] or {}
+			table.insert(self.invs_with_item[item_name], inv)
 		else
 			-- Inventory not found.
 		end
@@ -398,16 +398,16 @@ end
 
 function BarrelCluster:itemCount(item_name)
 	if not item_name then
-		return table_reduce(self._itemCount, function(a,b) return a+b end) - (self._itemCount['empty'] or 0)
+		return table_reduce(self.item_count, function(a,b) return a+b end) - (self.item_count['empty'] or 0)
 	end
 
-	return self._itemCount[item_name] or 0
+	return self.item_count[item_name] or 0
 end
 
 BarrelCluster.availableItemCount = BarrelCluster.itemCount
 
 function BarrelCluster:hasItem(item_name)
-	if self.invsWithItem[item_name] then
+	if self.invs_with_item[item_name] then
 		return true
 	else
 		return false
@@ -426,17 +426,17 @@ function BarrelCluster:itemIsAvailable(item_name)
 	end
 
 	if not item_name then
-		for _item_name,invs_item in pairs(self.invsWithItem) do
+		for _item_name,invs_item in pairs(self.invs_with_item) do
 			if _item_name ~= 'empty' and search_invs_item(invs_item) then
 				return true
 			end
 		end
 	else
-		if not self.invsWithItem[item_name] then
+		if not self.invs_with_item[item_name] then
 			return false
 		end
 
-		return search_invs_item(self.invsWithItem[item_name])
+		return search_invs_item(self.invs_with_item[item_name])
 	end
 
 	return false
@@ -444,40 +444,40 @@ end
 
 function BarrelCluster:itemNames()
 	local item_names = {}
-	for item_name, _ in pairs(self._itemCount) do
+	for item_name, _ in pairs(self.item_count) do
 		item_names[#item_names+1] = item_name
 	end
 	return item_names
 end
 
 function BarrelCluster:_handleItemAdded(item_name, count)
-	if not self.invsWithItem[item_name] then
+	if not self.invs_with_item[item_name] then
 		error("no item '"..item_name.." in "..self.name)
 	end
 
-	self._itemCount[item_name] = self._itemCount[item_name] + count
+	self.item_count[item_name] = self.item_count[item_name] + count
 
 	return true
 end
 
 function BarrelCluster:_handleItemRemoved(item_name, count)
-	if not self.invsWithItem[item_name] then
+	if not self.invs_with_item[item_name] then
 		error("no item '"..item_name.." in "..self.name)
 	end
 
-	self._itemCount[item_name] = self._itemCount[item_name] - count
+	self.item_count[item_name] = self.item_count[item_name] - count
 
 	return true
 end
--- Returns a state where `itemName` can be inserted to. Returns 'nil' if none are available.
+-- Returns a state where `item_name` can be inserted to. Returns 'nil' if none are available.
 function BarrelCluster:inputState(item_name)
 	if not item_name or item_name == 'empty' then error('Item name required ("'..(item_name or 'nil')..'" provided)') end
-	if not self.invsWithItem[item_name] then
+	if not self.invs_with_item[item_name] then
 		return nil
 	end
 
 	local state
-	for _, inv in pairs(self.invsWithItem[item_name]) do
+	for _, inv in pairs(self.invs_with_item[item_name]) do
 		state = inv:inputState()
 
 		if state then
@@ -487,7 +487,7 @@ function BarrelCluster:inputState(item_name)
 
 	return nil
 end
--- Returns a state from which `itemName` can be drawn from. Returns 'nil' if none are available.
+-- Returns a state from which `item_name` can be drawn from. Returns 'nil' if none are available.
 function BarrelCluster:outputState(item_name)
 	-- NOTE: Yes, the worst case of this is O(n). However, the average case is O(1).
 	local function search_invs_item(invs_item)
@@ -503,16 +503,16 @@ function BarrelCluster:outputState(item_name)
 	end
 
 	if not item_name then
-		for _, invs_item in pairs(self.invsWithItem) do
+		for _, invs_item in pairs(self.invs_with_item) do
 			local state = search_invs_item(invs_item)
 			if state then return state end
 		end
 	else
-		if not self.invsWithItem[item_name] then
+		if not self.invs_with_item[item_name] then
 			return nil
 		end
 
-		local state = search_invs_item(self.invsWithItem[item_name])
+		local state = search_invs_item(self.invs_with_item[item_name])
 		if state then return state end
 	end
 
@@ -523,14 +523,14 @@ function BarrelCluster:recountItem(item_name)
 	if item_name == 'empty' then
 		error("can't recount empty item")
 	end
-	if not self.invsWithItem[item_name] then
+	if not self.invs_with_item[item_name] then
 		error("item '"..item_name.."' does not exist in bulk storage")
 	end
 
-	self._itemCount[item_name] = 0
-	for _,inv in pairs(self.invsWithItem[item_name]) do
-		inv:recount(self.invsWithItem['empty'])
-		self._itemCount[item_name] = self._itemCount[item_name] + inv.count
+	self.item_count[item_name] = 0
+	for _,inv in pairs(self.invs_with_item[item_name]) do
+		inv:recount(self.invs_with_item['empty'])
+		self.item_count[item_name] = self.item_count[item_name] + inv.count
 	end
 end
 
@@ -540,7 +540,7 @@ function BarrelCluster:registerItem(item_name)
 		error('Item name cannot be '..item_name)
 	end
 
-	local empty_invs = self.invsWithItem['empty']
+	local empty_invs = self.invs_with_item['empty']
 	if not empty_invs or #empty_invs == 0 then
 		error('No empty inventories found')
 	end
@@ -550,15 +550,15 @@ function BarrelCluster:registerItem(item_name)
 	-- Removing inv from the 'empty' list.
 	empty_invs[#empty_invs] = nil
 	-- Making sure to clean up if there's nothing in the list.
-	if #self.invsWithItem['empty'] == 0 then
-		self.invsWithItem['empty'] = nil
+	if #self.invs_with_item['empty'] == 0 then
+		self.invs_with_item['empty'] = nil
 	end
 
 	-- Making sure the item's list exists.
-	self.invsWithItem[item_name] = self.invsWithItem[item_name] or {}
-	self._itemCount[item_name] = self._itemCount[item_name] or 0
+	self.invs_with_item[item_name] = self.invs_with_item[item_name] or {}
+	self.item_count[item_name] = self.item_count[item_name] or 0
 	-- Adding inv to the item's list.
-	table.insert(self.invsWithItem[item_name], inv)
+	table.insert(self.invs_with_item[item_name], inv)
 
 	inv:registerItem(item_name)
 end
@@ -569,8 +569,8 @@ function BarrelCluster:unregisterItem(item_name)
 		error('Item name cannot be '..item_name)
 	end
 
-	local item_invs = self.invsWithItem[item_name]
-	local empty_invs = self.invsWithItem['empty']
+	local item_invs = self.invs_with_item[item_name]
+	local empty_invs = self.invs_with_item['empty']
 
 	for _,inv in ipairs(item_invs) do
 		if inv:hasItem() then
@@ -583,14 +583,14 @@ function BarrelCluster:unregisterItem(item_name)
 		table.insert(empty_invs, inv)
 	end
 
-	self.invsWithItem[item_name] = nil
-	self._itemCount[item_name] = nil
+	self.invs_with_item[item_name] = nil
+	self.item_count[item_name] = nil
 end
 
 function BarrelCluster:recount()
-	for itemName,_ in pairs(self.invsWithItem) do
-		if itemName ~= 'empty' then
-			self:recountItem(itemName)
+	for item_name,_ in pairs(self.invs_with_item) do
+		if item_name ~= 'empty' then
+			self:recountItem(item_name)
 		end
 	end
 end

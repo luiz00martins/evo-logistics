@@ -123,7 +123,7 @@ function MainPage:new(main, io_stor, crafting_cluster, storage_clusters, callbac
 					local total_moved = 0
 					local retrieve_from_clusters = function()
 						for _, cluster in ipairs(storage_clusters) do
-							if amount > 0 and cluster._itemCount[item_name] and cluster._itemCount[item_name] > 0 then
+							if amount > 0 and cluster:itemCount(item_name) and cluster:itemCount(item_name) > 0 then
 								local moved = transfer(cluster, io_stor, cluster, io_stor, item_name, amount)
 								if moved == 0 then
 									io_stor:refresh()
@@ -243,7 +243,7 @@ function MainPage:refresh()
 					}
 				end
 
-				items_data_array[i].count = items_data_array[i].count + cluster._itemCount[item_name]
+				items_data_array[i].count = items_data_array[i].count + cluster:itemCount(item_name)
 				items_data_table[item_name] = items_data_array[i]
 			end
 		end

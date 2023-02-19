@@ -15,23 +15,23 @@ local StandardCluster = standard.StandardCluster
 local InterfaceInventory = new_class(StandardInventory)
 
 function InterfaceInventory:new(args)
-	local newInventory = StandardInventory:new(args)
+	local newInterfaceInventory = StandardInventory:new(args)
 
 	-- Could not find inventory.
-	if not newInventory then
+	if not newInterfaceInventory then
 		return nil
 	end
 
-	newInventory.storage_clusters = args.storage_clusters or error('No storage clusters provided')
-	newInventory.config_types = {
+	newInterfaceInventory.storage_clusters = args.storage_clusters or error('No storage clusters provided')
+	newInterfaceInventory.config_types = {
 		active_import = {},
 		active_export = {},
 		passive_import = {},
 		passive_export = {},
 	}
 
-	setmetatable(newInventory, InterfaceInventory)
-	return newInventory
+	setmetatable(newInterfaceInventory, InterfaceInventory)
+	return newInterfaceInventory
 end
 
 function InterfaceInventory:registerConfig(config)
@@ -119,18 +119,18 @@ end
 local InterfaceCluster = new_class(StandardCluster)
 
 function InterfaceCluster:new(args)
-	local newCluster = StandardCluster:new(args)
+	local newInterfaceCluster = StandardCluster:new(args)
 
-	newCluster.storage_clusters = args.storage_clusters or error('parameter missing `storage_clusters`')
-	newCluster.config_lists = {
+	newInterfaceCluster.storage_clusters = args.storage_clusters or error('parameter missing `storage_clusters`')
+	newInterfaceCluster.config_lists = {
 		active_imports = {},
 		active_exports = {},
 		passive_imports = {},
 		passive_exports = {},
 	}
 
-	setmetatable(newCluster, InterfaceCluster)
-	return newCluster
+	setmetatable(newInterfaceCluster, InterfaceCluster)
+	return newInterfaceCluster
 end
 
 function InterfaceCluster:availableItemCount(item_name)

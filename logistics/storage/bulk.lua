@@ -38,21 +38,21 @@ local BulkInv = {
 }
 
 function BulkInv:new(args)
-	local newInventory = AbstractInventory:new(args)
+	local newBulkInv = AbstractInventory:new(args)
 
 	-- Could not find inventory.
-	if not newInventory then
+	if not newBulkInv then
 		return nil
 	end
 
 	-- TODO: This shouldn't be autodetect, you should put it manually (with the option to autodetect).
-	if newInventory.size == 2 then
-		setmetatable(newInventory, BulkInv.IO_SLOTS)
+	if newBulkInv.size == 2 then
+		setmetatable(newBulkInv, BulkInv.IO_SLOTS)
 	else
-		setmetatable(newInventory, BulkInv.NORMAL)
+		setmetatable(newBulkInv, BulkInv.NORMAL)
 	end
 
-	return newInventory
+	return newBulkInv
 end
 
 function BulkInv.NORMAL:catalog()
@@ -60,15 +60,15 @@ function BulkInv.NORMAL:catalog()
 
 	-- Figuring out which item is in storage.
 	if next(items) == nil then
-		self.itemName = 'empty'
+		self.item_name = 'empty'
 	else
 		local _, item = next(items)
-		self.itemName = item.name
+		self.item_name = item.name
 	end
 
 	self.count = 0
-	self.itemStates = dl_list()
-	self.emptyStates = dl_list()
+	self.item_states = dl_list()
+	self.empty_states = dl_list()
 
 	-- Building list of item states.
 	local state
@@ -82,12 +82,12 @@ function BulkInv.NORMAL:catalog()
 		local item_name = state:itemName()
 
 		if item_name == 'empty' then
-			self.emptyStates:push(state)
-		elseif item_name == self.itemName then
-			self.itemStates:push(state)
+			self.empty_states:push(state)
+		elseif item_name == self.item_name then
+			self.item_states:push(state)
 			self.count = self.count + state:itemCount()
 		else
-			error("bulk inventory "..self.name.." contains two different items("..self.itemName.." and "..item_name..")")
+			error("bulk inventory "..self.name.." contains two different items("..self.item_name.." and "..item_name..")")
 		end
 	end
 end
@@ -101,19 +101,19 @@ function BulkInv.IO_SLOTS:catalog()
 	-- Figuring out which item is in storage.
 	local _, item = next(items)
 	if item == nil then
-		self.itemName = 'empty'
+		self.item_name = 'empty'
 	else
-		self.itemName = item.name
+		self.item_name = item.name
 	end
 
 	-- We assume that the first slot is input, and the second is output.
-	self.inState = BulkState:new{
+	self.in_state = BulkState:new{
 		parent = self,
 		slot = 1,
 		item = items[1],
 		full = false,
 	}
-	self.outState = BulkState:new{
+	self.out_state = BulkState:new{
 		parent = self,
 		slot = 2,
 		item = items[2],
@@ -122,14 +122,14 @@ function BulkInv.IO_SLOTS:catalog()
 end
 
 function BulkInv.NORMAL:inputState()
-	if self.itemStates.last and not self.itemStates.last.full then
-		return self.itemStates.last
-	elseif self.emptyStates.last then
-		return self.emptyStates.last
+	if self.item_states.last and not self.item_states.last.full then
+		return self.item_states.last
+	elseif self.empty_states.last then
+		return self.empty_states.last
 	end
 
 	-- In case the last slot was full, and there's no empty, we check the other ones to make *sure* that there's no spare space.
-	for state in self.itemStates:iterate() do
+	for state in self.item_states:iterate() do
 		if not state.full then
 			return state
 		end
@@ -140,16 +140,16 @@ function BulkInv.NORMAL:inputState()
 end
 
 function BulkInv.IO_SLOTS:inputState()
-	if not self.inState.full then
-		return self.inState
+	if not self.in_state.full then
+		return self.in_state
 	else
 		return nil
 	end
 end
 
 function BulkInv.NORMAL:outputState()
-	if self.itemStates.last then
-		return self.itemState.last
+	if self.item_states.last then
+		return self.item_state.last
 	end
 
 	-- No item in storage.
@@ -157,8 +157,8 @@ function BulkInv.NORMAL:outputState()
 end
 
 function BulkInv.IO_SLOTS:outputState()
-	if self.outState:itemCount() > 0 then
-		return self.outState
+	if self.out_state:itemCount() > 0 then
+		return self.out_state
 	else
 		return nil
 	end
@@ -169,7 +169,7 @@ function BulkInv.NORMAL:hasItem()
 end
 
 function BulkInv.IO_SLOTS:hasItem()
-	return self.outState:itemCount() > 0
+	return self.out_state:itemCount() > 0
 end
 
 function BulkInv.NORMAL:hasItem()
@@ -185,7 +185,7 @@ function BulkInv.NORMAL:itemCount()
 end
 
 function BulkInv.IO_SLOTS:itemIsAvailable()
-	return self.outState:itemCount() > 0
+	return self.out_state:itemCount() > 0
 end
 
 function BulkInv.NORMAL:_handleItemAdded(item_name, amount, previous_handlers)
@@ -209,8 +209,8 @@ end
 
 function BulkInv.IO_SLOTS:update()
 	os.sleep(MAX_UPDATE_WAIT_TIME)
-	self.outState:update()
-	self.inState:update()
+	self.out_state:update()
+	self.in_state:update()
 end
 
 function BulkInv.IO_SLOTS:registerItem(item_name)
@@ -220,10 +220,10 @@ function BulkInv.IO_SLOTS:registerItem(item_name)
 	end
 
 	if self:hasItem() then
-		error('Bulk Inventory cannot register item '..item_name..', as it still has item '..self.itemName)
+		error('Bulk Inventory cannot register item '..item_name..', as it still has item '..self.item_name)
 	end
 
-	self.itemName = item_name
+	self.item_name = item_name
 end
 
 function BulkInv.NORMAL:registerItem(item_name)
@@ -236,11 +236,11 @@ function BulkInv.IO_SLOTS:unregisterItem(item_name)
 		error('Item name cannot be '..item_name)
 	end
 
-	item_name = item_name or self.itemName
-	if item_name ~= self.itemName then
-		error('Cannot unregister '..item_name..' from inventory registered for '..self.itemName)
+	item_name = item_name or self.item_name
+	if item_name ~= self.item_name then
+		error('Cannot unregister '..item_name..' from inventory registered for '..self.item_name)
 	end
-	self.itemName = 'empty'
+	self.item_name = 'empty'
 end
 
 function BulkInv.NORMAL:unregisterItem(item_name)
@@ -256,8 +256,8 @@ end
 function BulkInv.IO_SLOTS:_bareTransferAll(target_inv)
 	local MAX_ATTEMPTS = 3
 
-	local fromState = self.outState
-	local toState = target_inv.inState
+	local fromState = self.out_state
+	local toState = target_inv.in_state
 	local moved = 0
 
 	-- Move all items to empty, counting the each transter in the process.
@@ -286,7 +286,7 @@ function BulkInv.IO_SLOTS:_bareTransferAll(target_inv)
 			toState._item = nil
 		end
 
-		fromState = self.outState
+		fromState = self.out_state
 		toState = target_inv:inputState()
 	end
 
@@ -317,7 +317,7 @@ function BulkInv.IO_SLOTS:recount(empty_invs)
 
 	-- The inventory has to be empty for the count to be valid.
 	local emptied = not self:hasItem()
-	--print(self.outState:itemCount())
+	--print(self.out_state:itemCount())
 
 	-- Undo all moves.
 	for _,inv in pairs(empty_invs) do
@@ -330,7 +330,7 @@ function BulkInv.IO_SLOTS:recount(empty_invs)
 	self:update()
 
 	if not emptied then
-		error("not enough empty space in bulk storage to count "..self.itemName)
+		error("not enough empty space in bulk storage to count "..self.item_name)
 	end
 
 	self.count = moved - 1
@@ -339,20 +339,20 @@ end
 
 local BulkCluster = new_class(AbstractCluster)
 function BulkCluster:new (args)
-	local newCluster = AbstractCluster:new(args)
+	local newBulkCluster = AbstractCluster:new(args)
 
- 	newCluster._itemCount = {}
-	newCluster.invsWithItem = {}
+ 	newBulkCluster.item_count = {}
+	newBulkCluster.invs_with_item = {}
 
-	setmetatable(newCluster, self)
-	return newCluster
+	setmetatable(newBulkCluster, self)
+	return newBulkCluster
 end
 
 -- Catalogs the cluster (initial setup).
 function BulkCluster:catalog()
 	self.invs = {}
-	self.invsWithItem = {}
-	self._itemCount = {}
+	self.invs_with_item = {}
+	self.item_count = {}
 
 	for _,invName in ipairs(self:invNames()) do
 		local inv = BulkInv:new{
@@ -361,17 +361,17 @@ function BulkCluster:catalog()
 		}
 		inv:catalog()
 
-		local item_name = inv.itemName
+		local item_name = inv.item_name
 
 		-- Creating stats for item if it doesn't exist.
-		if not self.invsWithItem[item_name] then self.invsWithItem[item_name] = {} end
-		if not self._itemCount[item_name] then self._itemCount[item_name] = 0 end
+		if not self.invs_with_item[item_name] then self.invs_with_item[item_name] = {} end
+		if not self.item_count[item_name] then self.item_count[item_name] = 0 end
 
 		table.insert(self.invs, inv)
-		table.insert(self.invsWithItem[item_name], inv)
+		table.insert(self.invs_with_item[item_name], inv)
 
 		if item_name == 'empty' then
-			self._itemCount['empty'] = self._itemCount['empty'] + 1
+			self.item_count['empty'] = self.item_count['empty'] + 1
 		end
 	end
 
@@ -381,29 +381,29 @@ end
 function BulkCluster:setItemInventory(inv_name, item_name)
 	for _,inv in ipairs(self.invs) do
 		if inv.name == inv_name then
-			if inv:hasItem() and inv.itemName ~= item_name then
-				error('Trying to set inventory '..inv_name..' to item '..item_name..', but i\'s already with item '..inv.itemName)
+			if inv:hasItem() and inv.item_name ~= item_name then
+				error('Trying to set inventory '..inv_name..' to item '..item_name..', but i\'s already with item '..inv.item_name)
 			end
 
-			if inv.itemName then
+			if inv.item_name then
 				-- Removing from previous.
-				for i,invv in ipairs(self.invsWithItem[inv.itemName]) do
+				for i,invv in ipairs(self.invs_with_item[inv.item_name]) do
 					if inv == invv then
-						table.remove(self.invsWithItem[inv.itemName], i)
-						if #self.invsWithItem[inv.itemName] == 0 then
-							self.invsWithItem[inv.itemName] = nil
+						table.remove(self.invs_with_item[inv.item_name], i)
+						if #self.invs_with_item[inv.item_name] == 0 then
+							self.invs_with_item[inv.item_name] = nil
 						end
-						inv.itemName = nil
+						inv.item_name = nil
 						break
 					end
 				end
 			end
 
 			-- Adding new one.
-			self.invsWithItem[item_name] = self.invsWithItem[item_name] or {}
-			self._itemCount[item_name] = self._itemCount[item_name] or 0
-			inv.itemName = item_name
-			table.insert(self.invsWithItem[item_name], inv)
+			self.invs_with_item[item_name] = self.invs_with_item[item_name] or {}
+			self.item_count[item_name] = self.item_count[item_name] or 0
+			inv.item_name = item_name
+			table.insert(self.invs_with_item[item_name], inv)
 
 			return
 		end
@@ -423,20 +423,20 @@ function BulkCluster:registerInventory(args)
 	local inv = self:_createInventory(args)
 	inv:catalog()
 
-	local item_name = inv.itemName
+	local item_name = inv.item_name
 
 	-- Creating stats for item if it doesn't exist.
-	if not self.invsWithItem[item_name] then self.invsWithItem[item_name] = {} end
-	if not self._itemCount[item_name] then self._itemCount[item_name] = 0 end
+	if not self.invs_with_item[item_name] then self.invs_with_item[item_name] = {} end
+	if not self.item_count[item_name] then self.item_count[item_name] = 0 end
 
 	table.insert(self.invs, inv)
-	table.insert(self.invsWithItem[item_name], inv)
+	table.insert(self.invs_with_item[item_name], inv)
 
 	if item_name == 'empty' then
-		self._itemCount['empty'] = self._itemCount['empty'] + 1
+		self.item_count['empty'] = self.item_count['empty'] + 1
 	else
-		inv:recount(self.invsWithItem['empty'])
-		self._itemCount[item_name] = self._itemCount[item_name] + inv.count
+		inv:recount(self.invs_with_item['empty'])
+		self.item_count[item_name] = self.item_count[item_name] + inv.count
 	end
 end
 
@@ -456,26 +456,26 @@ function BulkCluster:unregisterInventory(inv_name)
 
 	table.remove(self.invs, pos)
 
-	for p,i in ipairs(self.invsWithItem[inv.itemName]) do
+	for p,i in ipairs(self.invs_with_item[inv.item_name]) do
 		if i == inv then
 			pos = p
 			break
 		end
 	end
-	table.remove(self.invsWithItem[inv.itemName], pos)
+	table.remove(self.invs_with_item[inv.item_name], pos)
 
 	-- HACK: This is a hack to attend for the name bug inside ´BulkInv:new´.
-	if inv.itemName == 'empty' or not self._itemCount[inv.itemName] or self._itemCount[inv.itemName] == 0 then
-		self._itemCount['empty'] = self._itemCount['empty'] - 1
+	if inv.item_name == 'empty' or not self.item_count[inv.item_name] or self.item_count[inv.item_name] == 0 then
+		self.item_count['empty'] = self.item_count['empty'] - 1
 	else
-		self._itemCount[inv.itemName] = self._itemCount[inv.itemName] - inv.count
+		self.item_count[inv.item_name] = self.item_count[inv.item_name] - inv.count
 	end
 end
 
 function BulkCluster:refresh()
 	local inv_names = self:invNames()
 
-	self.invsWithItem = {}
+	self.invs_with_item = {}
 	self.invs = {}
 
 	for _,invName in ipairs(inv_names) do
@@ -484,19 +484,19 @@ function BulkCluster:refresh()
 			name = invName,
 		}
 		inv:catalog()
-		local item_name = inv.itemName
+		local item_name = inv.item_name
 
 		-- Creating stats for item if it doesn't exist.
-		self.invsWithItem[item_name] = self.invsWithItem[item_name] or {}
-		self._itemCount[item_name] = self._itemCount[item_name] or 0
+		self.invs_with_item[item_name] = self.invs_with_item[item_name] or {}
+		self.item_count[item_name] = self.item_count[item_name] or 0
 
 		-- Updating invs.
 		self.invs[#self.invs+1] = inv
-		-- Updating invsWithItem.
-		table.insert(self.invsWithItem[item_name], inv)
+		-- Updating invs_with_item.
+		table.insert(self.invs_with_item[item_name], inv)
 		-- Updating item count.
 		if item_name == 'empty' then
-			self._itemCount['empty'] = self._itemCount['empty'] + 1
+			self.item_count['empty'] = self.item_count['empty'] + 1
 		end
 	end
 end
@@ -504,7 +504,7 @@ end
 function BulkCluster:saveData()
 	local inv_names = array_map(self.invs, function(inv) return inv.name end)
 	local inv_items = array_map(self.invs, function(inv)
-		return inv.itemName
+		return inv.item_name
 	end)
 	local inv_counts = array_map(self.invs, function(inv)
 		return inv.count
@@ -527,7 +527,7 @@ function BulkCluster:loadData(data)
 	local inv_counts = data.inv_counts
 	local connected_inventories_names = get_connected_inventories()
 
-	self._itemCount = {}
+	self.item_count = {}
 	self.invs = {}
 
 	for i,inv_name in ipairs(inv_names) do
@@ -542,9 +542,9 @@ function BulkCluster:loadData(data)
 			inv.count = item_count
 
 			table.insert(self.invs, inv)
-			self._itemCount[item_name] = self._itemCount[item_name] or 0
+			self.item_count[item_name] = self.item_count[item_name] or 0
 
-			self._itemCount[item_name] = self._itemCount[item_name] + item_count
+			self.item_count[item_name] = self.item_count[item_name] + item_count
 		else
 			-- Inventory not found.
 		end
@@ -563,16 +563,16 @@ end
 
 function BulkCluster:itemCount(item_name)
 	if not item_name then
-		return table_reduce(self._itemCount, function(a,b) return a+b end) - (self._itemCount['empty'] or 0)
+		return table_reduce(self.item_count, function(a,b) return a+b end) - (self.item_count['empty'] or 0)
 	end
 
-	return self._itemCount[item_name] or 0
+	return self.item_count[item_name] or 0
 end
 
 BulkCluster.availableItemCount = BulkCluster.itemCount
 
 function BulkCluster:hasItem(item_name)
-	if self.invsWithItem[item_name] then
+	if self.invs_with_item[item_name] then
 		return true
 	else
 		return false
@@ -591,17 +591,17 @@ function BulkCluster:itemIsAvailable(item_name)
 	end
 
 	if not item_name then
-		for _item_name,invs_item in pairs(self.invsWithItem) do
+		for _item_name,invs_item in pairs(self.invs_with_item) do
 			if _item_name ~= 'empty' and search_invs_item(invs_item) then
 				return true
 			end
 		end
 	else
-		if not self.invsWithItem[item_name] then
+		if not self.invs_with_item[item_name] then
 			return false
 		end
 
-		return search_invs_item(self.invsWithItem[item_name])
+		return search_invs_item(self.invs_with_item[item_name])
 	end
 
 	return false
@@ -609,40 +609,40 @@ end
 
 function BulkCluster:itemNames()
 	local item_names = {}
-	for item_name, _ in pairs(self._itemCount) do
+	for item_name, _ in pairs(self.item_count) do
 		item_names[#item_names+1] = item_name
 	end
 	return item_names
 end
 
 function BulkCluster:_handleItemAdded(item_name, count)
-	if not self.invsWithItem[item_name] then
+	if not self.invs_with_item[item_name] then
 		error("no item '"..item_name.." in "..self.name)
 	end
 
-	self._itemCount[item_name] = self._itemCount[item_name] + count
+	self.item_count[item_name] = self.item_count[item_name] + count
 
 	return true
 end
 
 function BulkCluster:_handleItemRemoved(item_name, count)
-	if not self.invsWithItem[item_name] then
+	if not self.invs_with_item[item_name] then
 		error("no item '"..item_name.." in "..self.name)
 	end
 
-	self._itemCount[item_name] = self._itemCount[item_name] - count
+	self.item_count[item_name] = self.item_count[item_name] - count
 
 	return true
 end
--- Returns a state where `itemName` can be inserted to. Returns 'nil' if none are available.
+-- Returns a state where `item_name` can be inserted to. Returns 'nil' if none are available.
 function BulkCluster:inputState(item_name)
 	if not item_name or item_name == 'empty' then error('Item name required ("'..(item_name or 'nil')..'" provided)') end
-	if not self.invsWithItem[item_name] then
+	if not self.invs_with_item[item_name] then
 		return nil
 	end
 
 	local state
-	for _, inv in pairs(self.invsWithItem[item_name]) do
+	for _, inv in pairs(self.invs_with_item[item_name]) do
 		state = inv:inputState()
 
 		if state then
@@ -652,7 +652,7 @@ function BulkCluster:inputState(item_name)
 
 	return nil
 end
--- Returns a state from which `itemName` can be drawn from. Returns 'nil' if none are available.
+-- Returns a state from which `item_name` can be drawn from. Returns 'nil' if none are available.
 function BulkCluster:outputState(item_name)
 	-- NOTE: Yes, the worst case of this is O(n). However, the average case is O(1).
 	local function search_invs_item(invs_item)
@@ -668,16 +668,16 @@ function BulkCluster:outputState(item_name)
 	end
 
 	if not item_name then
-		for _, invs_item in pairs(self.invsWithItem) do
+		for _, invs_item in pairs(self.invs_with_item) do
 			local state = search_invs_item(invs_item)
 			if state then return state end
 		end
 	else
-		if not self.invsWithItem[item_name] then
+		if not self.invs_with_item[item_name] then
 			return nil
 		end
 
-		local state = search_invs_item(self.invsWithItem[item_name])
+		local state = search_invs_item(self.invs_with_item[item_name])
 		if state then return state end
 	end
 
@@ -688,14 +688,14 @@ function BulkCluster:recountItem(item_name)
 	if item_name == 'empty' then
 		error("can't recount empty item")
 	end
-	if not self.invsWithItem[item_name] then
+	if not self.invs_with_item[item_name] then
 		error("item '"..item_name.."' does not exist in bulk storage")
 	end
 
-	self._itemCount[item_name] = 0
-	for _,inv in pairs(self.invsWithItem[item_name]) do
-		inv:recount(self.invsWithItem['empty'])
-		self._itemCount[item_name] = self._itemCount[item_name] + inv.count
+	self.item_count[item_name] = 0
+	for _,inv in pairs(self.invs_with_item[item_name]) do
+		inv:recount(self.invs_with_item['empty'])
+		self.item_count[item_name] = self.item_count[item_name] + inv.count
 	end
 end
 
@@ -705,7 +705,7 @@ function BulkCluster:registerItem(item_name)
 		error('Item name cannot be '..item_name)
 	end
 
-	local empty_invs = self.invsWithItem['empty']
+	local empty_invs = self.invs_with_item['empty']
 	if not empty_invs or #empty_invs == 0 then
 		error('No empty inventories found')
 	end
@@ -715,15 +715,15 @@ function BulkCluster:registerItem(item_name)
 	-- Removing inv from the 'empty' list.
 	empty_invs[#empty_invs] = nil
 	-- Making sure to clean up if there's nothing in the list.
-	if #self.invsWithItem['empty'] == 0 then
-		self.invsWithItem['empty'] = nil
+	if #self.invs_with_item['empty'] == 0 then
+		self.invs_with_item['empty'] = nil
 	end
 
 	-- Making sure the item's list exists.
-	self.invsWithItem[item_name] = self.invsWithItem[item_name] or {}
-	self._itemCount[item_name] = self._itemCount[item_name] or 0
+	self.invs_with_item[item_name] = self.invs_with_item[item_name] or {}
+	self.item_count[item_name] = self.item_count[item_name] or 0
 	-- Adding inv to the item's list.
-	table.insert(self.invsWithItem[item_name], inv)
+	table.insert(self.invs_with_item[item_name], inv)
 
 	inv:registerItem(item_name)
 end
@@ -734,8 +734,8 @@ function BulkCluster:unregisterItem(item_name)
 		error('Item name cannot be '..item_name)
 	end
 
-	local item_invs = self.invsWithItem[item_name]
-	local empty_invs = self.invsWithItem['empty']
+	local item_invs = self.invs_with_item[item_name]
+	local empty_invs = self.invs_with_item['empty']
 
 	for _,inv in ipairs(item_invs) do
 		if inv:hasItem() then
@@ -748,14 +748,14 @@ function BulkCluster:unregisterItem(item_name)
 		table.insert(empty_invs, inv)
 	end
 
-	self.invsWithItem[item_name] = nil
-	self._itemCount[item_name] = nil
+	self.invs_with_item[item_name] = nil
+	self.item_count[item_name] = nil
 end
 
 function BulkCluster:recount()
-	for itemName,_ in pairs(self.invsWithItem) do
-		if itemName ~= 'empty' then
-			self:recountItem(itemName)
+	for item_name,_ in pairs(self.invs_with_item) do
+		if item_name ~= 'empty' then
+			self:recountItem(item_name)
 		end
 	end
 end
