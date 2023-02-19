@@ -30,7 +30,7 @@ function LoadingScreen:init(finish_callback, steps)
 	end
 end
 
-function LoadingScreen:run_next()
+function LoadingScreen:runNext()
 	local task = self.steps[self.current_step]
 
 	if task.before_callback then

@@ -66,7 +66,7 @@ function CraftingProfile:serialize()
 	return serialized
 end
 
-function CraftingProfile:from_serialized(serialized)
+function CraftingProfile:fromSerialized(serialized)
 	local unserialized = textutils.unserialize(serialized)
 
 	local newCraftingProfile = CraftingProfile:new{
@@ -121,7 +121,7 @@ function CraftingCluster:new(args)
 	return newCraftingCluster
 end
 
-function CraftingCluster:save_data()
+function CraftingCluster:saveData()
 	local profiles = array_map(self.profiles, function(profile) return profile:serialize() end)
 
 	local inv_names = array_map(self.invs, function(inv) return inv.name end)
@@ -134,12 +134,12 @@ function CraftingCluster:save_data()
 	return textutils.serialize(data)
 end
 
-function CraftingCluster:load_data(data)
+function CraftingCluster:loadData(data)
 	data = textutils.unserialize(data)
 
 	local profiles = {}
 	for _,serialized_profile in ipairs(data.profiles) do
-		local profile = CraftingProfile:from_serialized(serialized_profile)
+		local profile = CraftingProfile:fromSerialized(serialized_profile)
 		profiles[#profiles+1] = profile
 	end
 

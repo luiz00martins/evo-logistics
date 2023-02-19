@@ -57,7 +57,7 @@ function InterfaceInventory:registerConfig(config)
 	end
 end
 
-function InterfaceInventory:_execute_active_imports()
+function InterfaceInventory:_executeActiveImports()
 	for slot,config in pairs(self.config_types.active_import) do
 		local state = self.states[slot]
 
@@ -112,7 +112,7 @@ end
 InterfaceInventory.itemIsAvailable = InterfaceInventory.hasItem
 
 function InterfaceInventory:execute()
-	self:_execute_active_imports()
+	self:_executeActiveImports()
 end
 
 -- Interface cluster.
@@ -174,7 +174,7 @@ function InterfaceCluster:registerConfig(config)
 	inv:registerConfig(config)
 end
 
-function InterfaceCluster:_execute_active_imports()
+function InterfaceCluster:_executeActiveImports()
 	for _,config in pairs(self.active_imports) do
 
 	end

@@ -501,7 +501,7 @@ function BulkCluster:refresh()
 	end
 end
 
-function BulkCluster:save_data()
+function BulkCluster:saveData()
 	local inv_names = array_map(self.invs, function(inv) return inv.name end)
 	local inv_items = array_map(self.invs, function(inv)
 		return inv.itemName
@@ -519,7 +519,7 @@ function BulkCluster:save_data()
 	return textutils.serialize(data)
 end
 
-function BulkCluster:load_data(data)
+function BulkCluster:loadData(data)
 	data = textutils.unserialize(data)
 
 	local inv_names = data.inv_names
@@ -553,7 +553,7 @@ function BulkCluster:load_data(data)
 	return true
 end
 
-function BulkCluster:data_path()
+function BulkCluster:dataPath()
 	return "/logistics_data/"..self.name..".data"
 end
 

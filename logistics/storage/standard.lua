@@ -429,7 +429,7 @@ function StandardCluster:catalog()
 	end
 end
 
-function StandardCluster:save_data()
+function StandardCluster:saveData()
 	local inv_names = {}
 	for _,inv in ipairs(self.invs) do
 		inv_names[#inv_names+1] = inv.name
@@ -442,7 +442,7 @@ function StandardCluster:save_data()
 	return textutils.serialize(data)
 end
 
-function StandardCluster:load_data(data)
+function StandardCluster:loadData(data)
 	data = textutils.unserialize(data)
 
 	if data.inv_names then
@@ -454,7 +454,7 @@ function StandardCluster:load_data(data)
 	return true
 end
 
-function StandardCluster:data_path()
+function StandardCluster:dataPath()
 	return "/logistics_data/"..self.name..".data"
 end
 

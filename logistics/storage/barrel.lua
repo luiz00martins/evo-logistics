@@ -334,7 +334,7 @@ function BarrelCluster:refresh()
 	end
 end
 
-function BarrelCluster:save_data()
+function BarrelCluster:saveData()
 	local inv_names = array_map(self.invs, function(inv) return inv.name end)
 	local inv_items = array_map(self.invs, function(inv)
 		return inv.itemName
@@ -352,7 +352,7 @@ function BarrelCluster:save_data()
 	return textutils.serialize(data)
 end
 
-function BarrelCluster:load_data(data)
+function BarrelCluster:loadData(data)
 	data = textutils.unserialize(data)
 
 	local inv_names = data.inv_names
@@ -388,7 +388,7 @@ function BarrelCluster:load_data(data)
 	return true
 end
 
-function BarrelCluster:data_path()
+function BarrelCluster:dataPath()
 	return "/logistics_data/"..self.name..".data"
 end
 

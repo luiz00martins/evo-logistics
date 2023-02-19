@@ -275,17 +275,17 @@ function AbstractCluster:refresh()
 	error('abstract method "refresh" not implemented')
 end
 -- Returns the (serialized) cluster's data to be saved.
-function AbstractCluster:save_data()
-	error('abstract method "save_data" not implemented')
+function AbstractCluster:saveData()
+	error('abstract method "saveData" not implemented')
 end
--- Loads the cluster's data (in the same format as the 'save_data' function).
+-- Loads the cluster's data (in the same format as the 'saveData' function).
 ---@diagnostic disable-next-line: unused-local
-function AbstractCluster:load_data(data)
-	error('abstract method "load_data" not implemented')
+function AbstractCluster:loadData(data)
+	error('abstract method "loadData" not implemented')
 end
 -- Returns the path to the cluster's data file.
-function AbstractCluster:data_path()
-	error('abstract method "data_path" not implemented')
+function AbstractCluster:dataPath()
+	error('abstract method "dataPath" not implemented')
 end
 -- Returns whether `itemName` exists in the cluster.
 ---@diagnostic disable-next-line: unused-local
@@ -355,8 +355,8 @@ end
 
 -- Saves the cluster's data to its data path.
 function AbstractCluster:save()
-	local data = self:save_data()
-	local path = self:data_path()
+	local data = self:saveData()
+	local path = self:dataPath()
 
 	local file = fs.open(path, 'w')
 	file.write(data)
@@ -365,7 +365,7 @@ end
 
 -- Loads the cluster's data from its data path.
 function AbstractCluster:load()
-	local path = self:data_path()
+	local path = self:dataPath()
 	local file = fs.open(path, "r")
 
 	if not file then
@@ -374,7 +374,7 @@ function AbstractCluster:load()
 		local contents = file.readAll()
 		file.close()
 
-		self:load_data(contents)
+		self:loadData(contents)
 		return true
 	end
 end

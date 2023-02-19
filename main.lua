@@ -99,7 +99,7 @@ end
 local function load_clusters()
 	for _,cluster in pairs(clusters) do
 		if not cluster:load() then
-			utils.log("File "..cluster:data_path().." not found, skipping.")
+			utils.log("File "..cluster:dataPath().." not found, skipping.")
 		end
 	end
 end
