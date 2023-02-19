@@ -33,6 +33,28 @@ function StandardState:update()
 	self.full = false
 end
 
+function StandardState:_moveItem(targetState, limit)
+	local item = self:item()
+
+	-- If there`s no item to move, return 0.
+	if not item then return 0 end
+	-- If the states are the same, there's no need to move an item.
+	if self == targetState then return 0 end
+
+	-- If no limit (or negative limit) was given, then we assume every item is to be moved.
+	if not limit or limit < 0 then
+		limit = item.count
+	end
+
+	-- Moving item
+	local moved = peripheral.call(
+			self:invName(), 'pushItems',
+			targetState:invName(), self.slot, limit, targetState.slot
+		)
+
+	return moved
+end
+
 -- Adds `amount` of `itemName` to the slot.
 function StandardState:_handleItemAdded(item_name, amount, previous_handlers)
 	if amount == 0 then

@@ -53,7 +53,7 @@ local function _execute_handlers(output, input, output_handler, input_handler, i
 	return successful
 end
 
--- 'handler' and 'target_handler' are the _highest_ handlers specified. This function will execute the handlers from the lowest level (State) to the highest specifies.
+-- 'input_handler' and 'output_handler' are the _highest_ handlers specified. This function will execute the handlers from the lowest level (State) to the highest specifies.
 -- For example, if you specify 'self' self as a State and 'handler' as its Cluster, the order of execution will be (State -> Inventory -> Cluster). If you specify the 'handler' as its Inventory, the order of execution will be (State -> Inventory). If you specify the 'handler' as itself, it'll only update itself (State).
 local function transfer(output, input, output_handler, input_handler, item_name, limit)
 	-- NOTE: This is a very important line, and should not be removed.
@@ -86,7 +86,7 @@ local function transfer(output, input, output_handler, input_handler, item_name,
 	else
 		upper_bound = function() return nil end
 	end
-
+	
 	while output:itemIsAvailable(item_name) and input_state and output_state and (not limit or moved < limit) do
 		repeat
 			-- Moving item
@@ -164,29 +164,7 @@ end
 AbstractState.itemIsAvailable = AbstractState.hasItem
 
 function AbstractState:_moveItem(targetState, limit)
-	local item = self:item()
-
-	-- If there`s no item to move, return 0.
-	if not item then return 0 end
-	-- If the states are the same, there's no need to move an item.
-	if self == targetState then return 0 end
-
-	-- If no limit (or negative limit) was given, then we assume every item is to be moved.
-	if not limit or limit < 0 then
-		limit = item.count
-	end
-
-	-- Moving item
-	local moved = peripheral.call(
-			self:invName(), "pushItems",
-			targetState:invName(), self.slot, limit, targetState.slot
-		)
-
-	-- Updating internal states.
-	--self:_removeItem(moved)
-	--targetState:_addItem(item.name, moved)
-
-	return moved
+	error('abstract method "_moveItem" not implemented')
 end
 
 -- Executes when an item is removed to the state.
@@ -236,19 +214,20 @@ local AbstractInventory = new_class()
 function AbstractInventory:new(args)
 	if not args then error("missing args") end
 
+	local size
+	-- Barrel-type inventories do not have the 'size' property.
+	if utils.table_contains(peripheral.getMethods(args.name), 'size') then
+		size = peripheral.call(args.name, "size")
+	end
+
 	if args.name == nil then error("missing parameter `name`") end
 
 	local newInventory = {
-			name = args.name,
-			parent = args.parent,
-			size = peripheral.call(args.name, "size"),
-			states = {},
-		}
-
-	-- This is the case in which the inventory was not found in the network.
-	if not newInventory.size then
-		return nil
-	end
+		name = args.name,
+		parent = args.parent,
+		size = size,
+		states = {},
+	}
 
 	setmetatable(newInventory, self)
 	return newInventory

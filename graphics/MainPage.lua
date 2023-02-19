@@ -152,8 +152,8 @@ function MainPage:new(main, ioStor, crafting_cluster, storage_clusters, callback
 							crafting_cluster:executeCraftingTree(crafting_tree)
 							retrieve_from_clusters()
 						else
-							for i,item in ipairs(missing_items) do
-								utils.log({item.name, item.count}, 2)
+							for _,item in ipairs(missing_items) do
+								utils.log('WARNING: Did not craft ' .. utils.tostring(item.count) .. ' ' .. utils.tostring(item.name))
 							end
 						end
 					end
@@ -225,6 +225,8 @@ function MainPage:updateList(search_text)
 end
 
 function MainPage:refresh()
+	local utils = require'utils'
+
 	local items_data_array = {}
 	local items_data_table = {}
 	local tracker = {}

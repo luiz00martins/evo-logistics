@@ -229,6 +229,65 @@ local function array_contains(arr, val)
 end
 
 
+local function _format_key(k)
+	if type(k) == 'number' or type(k) == 'boolean' then
+		k = string.format("[%s]", k)
+	elseif type(k) == 'string' then
+		-- TODO: Create a check for disallowed characters, making this unnecessary for valid strings.
+		k = string.format('["%s"]', k)
+	end
+
+	return k
+end
+
+local function _format_value(v)
+	if type(v) == 'string' then
+		v = string.format('"%s"', v)
+	else
+		v = tostring(v)
+	end
+
+	return v
+end
+
+local function table_serialize (tt, indent, done)
+  done = done or {}
+  indent = indent or 0
+  if type(tt) == "table" then
+    local sb = {}
+		--table.insert(sb, string.rep (" ", indent))
+    table.insert(sb, "{\n")
+    for key, value in pairs (tt) do
+      if type (value) == "table" and not done [value] then
+        done [value] = true
+				table.insert(sb, string.rep (" ", indent+2))
+				table.insert(sb, _format_key(key) .. ' = ')
+        table.insert(sb, table_serialize (value, indent + 2, done))
+			else
+				table.insert(sb, string.rep (" ", indent + 2)) -- indent it
+				table.insert(sb, string.format("%s = %s,\n", _format_key(key), _format_value(value)))
+			end
+    end
+		table.insert(sb, string.rep (" ", indent)) -- indent it
+    table.insert(sb, "},\n")
+    return table.concat(sb)
+  else
+    return tt .. "\n"
+  end
+end
+
+local function to_string( tbl )
+    if  "nil"       == type( tbl ) then
+        return 'nil'
+    elseif  "table" == type( tbl ) then
+        return table_serialize(tbl)
+    elseif  "string" == type( tbl ) then
+        return tbl
+    else
+        return tostring(tbl)
+    end
+end
+
 local function table_contains(tab, val)
     for i, v in pairs(tab) do
         if v == val then
@@ -381,7 +440,13 @@ local function get_connected_inventories()
 	-- FIXME: you should probalbly... uh... y'know... actually filter these out.
 	local blacklist = {'computer'}
 
-	return peripheral.call(get_modem_side(false), "getNamesRemote")
+	local modem_side = get_modem_side(false)
+
+	if not modem_side then
+		error('no modem found')
+	end
+
+	return peripheral.call(modem_side, "getNamesRemote")
 end
 
 local function inventory_type(inv_name)
@@ -430,6 +495,7 @@ end
 return {
 	table_deepcopy = table_deepcopy,
 	table_shallowcopy = table_shallowcopy,
+	tostring = to_string,
 	array_contains = array_contains,
 	table_contains = table_contains,
 	array_unique = array_unique,

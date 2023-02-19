@@ -14,7 +14,7 @@ local getOrder = utils.getOrder
 local transfer = require('logistics.storage.core').transfer
 local StandardCluster = require('logistics.storage.standard').StandardCluster
 local BulkCluster = require('logistics.storage.bulk').BulkCluster
-local VolatileCluster = require('logistics.storage.volatile').VolatileCluster
+local BarrelCluster = require('logistics.storage.barrel').BarrelCluster
 local CraftingCluster = require('logistics.storage.crafting').CraftingCluster
 local InterfaceCluster = require('logistics.storage.interface').InterfaceCluster
 
@@ -28,17 +28,18 @@ local InterfacePage = require('graphics.InterfacePage')
 local main_storage = StandardCluster:new{name = "main cluster"}
 local io_storage = StandardCluster:new{name = "io cluster"}
 local bulk_storage = BulkCluster:new{name = "bulk cluster"}
+local barrel_storage = BarrelCluster:new{name = "barrel cluster"}
 local interface_cluster = InterfaceCluster:new{
 	name = "interface cluster",
-	storage_clusters = {bulk_storage, main_storage}
+	storage_clusters = {barrel_storage, bulk_storage, main_storage}
 }
 local crafting_cluster = CraftingCluster:new{
 	name = "crafting cluster",
-	storage_clusters = {bulk_storage, main_storage, interface_cluster},
+	storage_clusters = {barrel_storage, bulk_storage, main_storage, interface_cluster},
 }
 
-local clusters = {io_storage, bulk_storage, main_storage, crafting_cluster, interface_cluster}
-local storage_clusters = {bulk_storage, main_storage}
+local clusters = {io_storage, barrel_storage, bulk_storage, main_storage, crafting_cluster, interface_cluster}
+local storage_clusters = {barrel_storage, bulk_storage, main_storage}
 
 local function refresh()
 		--devIO:stdout_write("Refreshing clusters... ")
@@ -67,7 +68,9 @@ local function storeAll()
 		for _, item_state in pairs(inv.states) do
 			local item = item_state:item()
 			if item ~= nil then
-				if bulk_storage.invsItem[item.name] then
+				if barrel_storage.invsItem[item.name] then
+					moved = transfer(io_storage, barrel_storage, io_storage, barrel_storage, item.name)
+				elseif bulk_storage.invsItem[item.name] then
 					moved = transfer(io_storage, bulk_storage, io_storage, bulk_storage, item.name)
 				else
 					moved = transfer(io_storage, main_storage, io_storage, main_storage, item.name)
@@ -103,7 +106,7 @@ local function load_clusters()
 end
 
 local function get_items_data()
-	local clusters = {bulk_storage, main_storage}
+	local clusters = {barrel_storage, bulk_storage, main_storage}
 
 	local cmp = function(a,b)
 		-- `nil` is interpreted as infinity for de purposes of ordering.
@@ -188,6 +191,7 @@ local extra_page = ExtraPage:new(main, {
 			queue:add{
 				name = 'Recounting Inventory',
 				fn = function()
+					barrel_storage:recount()
 					bulk_storage:recount()
 					save_clusters()
 				end
@@ -287,6 +291,14 @@ queue:add{
 }
 
 main_page.main_frame:show()
-basalt.autoUpdate()
 
+
+local function log_traceback()
+	utils.log(debug.traceback())
+end
+
+local ok, res = xpcall(basalt.autoUpdate, log_traceback)
+if not ok then
+	error(res)
+end
 
