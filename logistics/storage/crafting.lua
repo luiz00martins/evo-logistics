@@ -1,7 +1,7 @@
+---@diagnostic disable: need-check-nil
 local utils = require('/logos.utils')
 local core = require('/logos.logistics.storage.core')
 local standard = require('/logos.logistics.storage.standard')
-local ordered = require('/logos.logistics.storage.ordered')
 
 local get_connected_inventories = utils.get_connected_inventories
 local array_unique = utils.array_unique
@@ -12,12 +12,9 @@ local table_shallowcopy = utils.table_shallowcopy
 local array_contains = utils.array_contains
 local array_filter = utils.array_filter
 local inventory_type = utils.inventory_type
-local serialize = utils.serialize
 local new_class = utils.new_class
 
-local StandardInventory = standard.StandardInventory
 local StandardCluster = standard.StandardCluster
-local OrderedCluster = ordered.OrderedCluster
 local transfer = core.transfer
 
 -- Crafting Profile Class
@@ -29,7 +26,7 @@ function CraftingProfile:new(args)
 	-- These arguments must be passed.
 	if args.name == nil then error("parameter missing `name`") end
 	if args.inv_type == nil then error("parameter missing `inv_type`") end
-	
+
 	if not args.inv_size then
 		-- Finding out size.
 		local inventories = get_connected_inventories()
@@ -201,7 +198,7 @@ function CraftingCluster:itemNames()
 				if slot_data.type == 'output' then
 					item_names[#item_names+1] = slot_data.item_name
 				end
-			end	
+			end
 		end
 	end
 
@@ -220,7 +217,7 @@ function CraftingCluster:getAvailableItems(storage_clusters)
 			items[item_name] = items[item_name] + count
 		end
 	end
-	
+
 	return items
 end
 
@@ -240,7 +237,6 @@ function CraftingCluster:calculateMissingItems(item_name, amount, craft_list)
 	end
 	local recipe = recipes[1]
 
-	local amounts = {}
 	local output_crafted = 0
 
 	-- Getting how many items are needed for each crafing.
@@ -258,21 +254,21 @@ function CraftingCluster:calculateMissingItems(item_name, amount, craft_list)
 	local crafting_count = math.ceil(amount/output_crafted)
 
 	-- Recursively crafting necessaty items, if they are not already in inventory.
-	for item_name,amount_needed in pairs(inputs_needed) do
+	for _item_name,amount_needed in pairs(inputs_needed) do
 		amount_needed = amount_needed * crafting_count
 
-		local item_counts = table_map(self.storage_clusters, function(cluster) return cluster._itemCount[item_name] end)
+		local item_counts = table_map(self.storage_clusters, function(cluster) return cluster._itemCount[_item_name] end)
 		local total_stored = table_reduce(item_counts, function(a, b) return a + b end, 0)
 
 		if total_stored < amount_needed then
-			if array_contains(craft_list, item_name) then
-				error('More '..item_name..' needed to craft itself')
+			if array_contains(craft_list, _item_name) then
+				error('More '.._item_name..' needed to craft itself')
 			end
 
 			local new_craft_list = table_shallowcopy(craft_list)
-			new_craft_list[#new_craft_list+1] = item_name
+			new_craft_list[#new_craft_list+1] = _item_name
 
-			local missing_found = self:calculateMissingItems(item_name, amount_needed, new_craft_list)
+			local missing_found = self:calculateMissingItems(_item_name, amount_needed, new_craft_list)
 			for _,item in ipairs(missing_found) do
 				table.insert(missing_items, item)
 			end
@@ -296,7 +292,6 @@ function CraftingCluster:createCraftingTree(item_name, amount, craft_list)
 	local recipes = self.itemRecipes[item_name] or error('No recipes found for '..item_name)
 	local recipe = recipes[1]
 
-	local amounts = {}
 	local output_crafted = 0
 
 	-- Getting how many items are needed for each crafing.
@@ -317,24 +312,24 @@ function CraftingCluster:createCraftingTree(item_name, amount, craft_list)
 	crafting_tree.this.count = crafting_count
 
 	-- Recursively crafting necessaty items, if they are not already in inventory.
-	for item_name,amount_needed in pairs(inputs_needed) do
+	for _item_name,amount_needed in pairs(inputs_needed) do
 		amount_needed = amount_needed * crafting_count
 
 		local total_stored = table_reduce(
 			table_map(
 				self.storage_clusters,
-				function(cluster) return cluster:availableItemCount(item_name) end),
+				function(cluster) return cluster:availableItemCount(_item_name) end),
 			function(a, b) return a + b end, 0)
 
 		if total_stored < amount_needed then
-			if array_contains(craft_list, item_name) then
-				error('More '..item_name..' needed to craft itself')
+			if array_contains(craft_list, _item_name) then
+				error('More '.._item_name..' needed to craft itself')
 			end
 
 			local new_craft_list = table_shallowcopy(craft_list)
-			new_craft_list[#new_craft_list+1] = item_name
+			new_craft_list[#new_craft_list+1] = _item_name
 
-			table.insert(crafting_tree.children, self:createCraftingTree(item_name, amount_needed, new_craft_list))
+			table.insert(crafting_tree.children, self:createCraftingTree(_item_name, amount_needed, new_craft_list))
 		end
 	end
 
@@ -409,9 +404,10 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 end
 
 function CraftingCluster:waitCrafting(inv, toState, item_name, amount)
+	-- TODO: Implement 'AbstractState:itemCount(item_name)' (with the 'item_name' argument).
 	while toState:itemCount() < amount do
 		inv:refresh()
-		sleep(0)
+		os.sleep(0)
 	end
 end
 

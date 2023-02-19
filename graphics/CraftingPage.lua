@@ -1,12 +1,12 @@
 local utils = require('/logos.utils')
 local graphics_utils = require('graphics.utils')
-local basalt = require('/basalt')
 local crafting = require('logistics.storage.crafting')
 
 local get_connected_inventories = utils.get_connected_inventories
 local shorten_item_names = utils.shorten_item_names
 local string_split = utils.string_split
 local table_contains = utils.table_contains
+local table_shallowcopy = utils.table_shallowcopy
 local array_unique = utils.array_unique
 local array_filter = utils.array_filter
 local new_class = utils.new_class
@@ -134,7 +134,7 @@ function CraftingPage:_createNewProfileFrame()
 		end
 	end)
 
-	accept_button:onClick(function(button)
+	accept_button:onClick(function(_)
 		local inv_type = inv_types_dropdown:getItem(inv_types_dropdown:getItemIndex()).text
 		local name = name_input:getValue()
 
@@ -183,20 +183,19 @@ function CraftingPage:_refreshProfileFrames()
 		local profile_frame = create_subframe(self.main_frame, profile_button)
 			:setScrollable(true)
 
-		local inv_type = profile_frame:addTextfield()
+		profile_frame:addTextfield()
 			:setPosition(2, 3)
 			:setSize(width, 1)
 			:addLine(profile.inv_type)
 			:disable()
-	
-		local recipe_dropdowns = self:_refreshRecipeFrames(profile_frame, profile)
-	
-		local new_recipe_dropdown = self:_createNewRecipeFrame(profile_frame, profile)
-	
+
+		self:_refreshRecipeFrames(profile_frame, profile)
+		self:_createNewRecipeFrame(profile_frame, profile)
+
 		profile_buttons[#profile_buttons+1] = profile_button
 		profile_frames[#profile_frames+1] = profile_frame
 	end
-	
+
 	self.profile_buttons = profile_buttons
 	self.profile_frames = profile_frames
 end
@@ -205,7 +204,7 @@ function CraftingPage:_refreshRecipeFrames(profile_frame, profile)
 	local recipe_buttons = self.recipe_buttons
 	local recipe_frames = self.recipe_frames
 	local inv_size = profile.inv_size
-	
+
 	for i,recipe in ipairs(profile.recipes) do
 		local recipe_button = profile_frame:addButton('recipe_'..recipe.name)
 			:setPosition(2, i+4)
@@ -230,7 +229,7 @@ function CraftingPage:_refreshRecipeFrames(profile_frame, profile)
 		local picker = self.picker
 		local picker_window = self.picker_window
 
-		delete_button:onClick(function(button)
+		delete_button:onClick(function(_)
 			profile:removeRecipe(recipe.name)
 			self.crafting_cluster:refresh()
 			self.crafting_cluster:save("/logistics_data/"..self_page.crafting_cluster.name)
@@ -243,25 +242,25 @@ function CraftingPage:_refreshRecipeFrames(profile_frame, profile)
 		local x4 = math.floor(width*(3/4))+1
 
 		local slots = {}
-		for i=1,inv_size do
-			local text = slots_frame:addTextfield('name_'..tostring(i))
-				:setPosition(x1, i)
+		for j=1,inv_size do
+			local text = slots_frame:addTextfield('name_'..tostring(j))
+				:setPosition(x1, j)
 				:setSize(x2-x1, 1)
-				:addLine('Slot '..tostring(i))
-			local type = slots_frame:addDropdown('type_'..tostring(i))
-				:setPosition(x2, i)
+				:addLine('Slot '..tostring(j))
+			local type = slots_frame:addDropdown('type_'..tostring(j))
+				:setPosition(x2, j)
 				:setSize(x3-x2, 1)
-				:setZIndex(#profile.recipes+10-i)
+				:setZIndex(#profile.recipes+10-j)
 				:addItem('None')
 				:addItem('Input')
 				:addItem('Output')
 			type:selectItem(1)
-			local item = slots_frame:addButton('item_'..tostring(i))
-				:setPosition(x3, i)
+			local item = slots_frame:addButton('item_'..tostring(j))
+				:setPosition(x3, j)
 				:setSize(x4-x3, 1)
 				:setValue('item')
-			local amount = slots_frame:addInput('amount_'..tostring(i))
-				:setPosition(x4, i)
+			local amount = slots_frame:addInput('amount_'..tostring(j))
+				:setPosition(x4, j)
 				:setSize(width-(x4+2))
 
 			item:onClick(function()
@@ -285,8 +284,8 @@ function CraftingPage:_refreshRecipeFrames(profile_frame, profile)
 			}
 		end
 
-		for i,slot_data in pairs(recipe.slots) do
-			local slot = slots[i]
+		for j,slot_data in pairs(recipe.slots) do
+			local slot = slots[j]
 
 			if slot_data.type == 'input' then
 				slot.type:selectItem(2)
@@ -330,7 +329,7 @@ function CraftingPage:_createNewRecipeFrame(profile_frame, profile)
 	--accept_button.colour = colours.green
 
 	-- Cancel button
-	local cancel_button = new_recipe_frame:addButton('cancel_button')
+	new_recipe_frame:addButton('cancel_button')
 		:setPosition(middle+2, height)
 		:setSize(width-(middle), 1)
 		:setValue('cancel')
@@ -350,7 +349,7 @@ function CraftingPage:_createNewRecipeFrame(profile_frame, profile)
 	local item_names = {}
 	local short_item_names = {}
 	local get_full_name = {}
-	
+
 	local function refresh_item_names()
 		item_names = array_filter(self:getItemNames(), function(item_name) return item_name ~= 'empty' end)
 		short_item_names = shorten_item_names(item_names)
@@ -368,7 +367,7 @@ function CraftingPage:_createNewRecipeFrame(profile_frame, profile)
 	local x3 = math.floor(width*(2/4))+1
 	local x4 = math.floor(width*(3/4))+1
 	for i=1,profile.inv_size do
-		local text = slots_frame:addTextfield('text_'..tostring(i))
+		slots_frame:addTextfield('text_'..tostring(i))
 			:setPosition(x1, i)
 			:setSize(x2-x1-1, 1)
 			:addLine('Slot '..tostring(i))
@@ -389,7 +388,7 @@ function CraftingPage:_createNewRecipeFrame(profile_frame, profile)
 			:setSize(width-(x4+2))
 			:setDefaultText('Amount')
 
-		item:onClick(function(button)
+		item:onClick(function(_)
 			refresh_item_names()
 
 			search_picker.options = short_item_names
@@ -397,7 +396,7 @@ function CraftingPage:_createNewRecipeFrame(profile_frame, profile)
 				item:setValue(short_item_name)
 				-- Setting defaults.
 				if amount:getValue() == '' then
-					amount:setValue('1') 
+					amount:setValue('1')
 				end
 				if type:getItemIndex() == 1 then
 					type:selectItem(2)
@@ -416,7 +415,7 @@ function CraftingPage:_createNewRecipeFrame(profile_frame, profile)
 		}
 	end
 
-	accept_button:onClick(function(button)
+	accept_button:onClick(function(_)
 		self.main_frame:show()
 
 		local recipe = {

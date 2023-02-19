@@ -1,15 +1,12 @@
 local utils = require('/logos.utils')
 local graphics_utils = require('graphics.utils')
-local basalt = require('/basalt')
 
-local array_filter = utils.array_filter
-local get_order = utils.get_order
 local new_class = utils.new_class
 local visual_button = graphics_utils.visual_button
 
 local ExtraPage = new_class()
 
-local width, height = TERMINAL_WIDTH-2, TERMINAL_HEIGHT-1
+local width, _ = TERMINAL_WIDTH-2, TERMINAL_HEIGHT-1
 
 function ExtraPage:new(main, functionalities)
 	local extra_page = {}

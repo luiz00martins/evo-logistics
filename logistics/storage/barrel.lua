@@ -1,5 +1,5 @@
+---@diagnostic disable: need-check-nil
 local utils = require('/logos.utils')
-local dl_list = require('/logos.logistics.utils.dl_list')
 local core = require('/logos.logistics.storage.core')
 local standard = require('/logos.logistics.storage.standard')
 
@@ -28,7 +28,7 @@ function BarrelState:_moveItem(targetState, limit)
 end
 
 -- NOTE: These handle the fact that update makes 'state.full = false'. Which means that the call for 'inputState()' inside 'transfer' will result in an infinite loop, because it checks for 'state.full'. If that check disappears, these can go.
-function BarrelState:_handleItemAdded(item_name, amount, previous_handlers)
+function BarrelState:_handleItemAdded(_, amount, _)
 	self._item.count = self._item.count + amount
 
 	if amount == 0 then
@@ -36,7 +36,7 @@ function BarrelState:_handleItemAdded(item_name, amount, previous_handlers)
 	end
 end
 
-function BarrelState:_handleItemRemoved(item_name, amount, previous_handlers)
+function BarrelState:_handleItemRemoved(_, amount, _)
 	self._item.count = self._item.count - amount
 
 	if amount ~= 0 then
@@ -260,7 +260,7 @@ function BarrelCluster:setItemInventory(inv_name, item_name)
 			self._itemCount[item_name] = self._itemCount[item_name] or 0
 			inv.itemName = item_name
 			table.insert(self.invsWithItem[item_name], inv)
-			
+
 			return
 		end
 	end
@@ -334,7 +334,7 @@ function BarrelCluster:refresh()
 	end
 end
 
-function BarrelCluster:save_data(path)
+function BarrelCluster:save_data()
 	local inv_names = array_map(self.invs, function(inv) return inv.name end)
 	local inv_items = array_map(self.invs, function(inv)
 		return inv.itemName
@@ -426,8 +426,8 @@ function BarrelCluster:itemIsAvailable(item_name)
 	end
 
 	if not item_name then
-		for item_name,invs_item in pairs(self.invsWithItem) do
-			if item_name ~= 'empty' and search_invs_item(invs_item) then
+		for _item_name,invs_item in pairs(self.invsWithItem) do
+			if _item_name ~= 'empty' and search_invs_item(invs_item) then
 				return true
 			end
 		end
@@ -475,7 +475,7 @@ function BarrelCluster:inputState(item_name)
 	if not self.invsWithItem[item_name] then
 		return nil
 	end
-	
+
 	local state
 	for _, inv in pairs(self.invsWithItem[item_name]) do
 		state = inv:inputState()
@@ -503,7 +503,7 @@ function BarrelCluster:outputState(item_name)
 	end
 
 	if not item_name then
-		for item_name, invs_item in pairs(self.invsWithItem) do
+		for _, invs_item in pairs(self.invsWithItem) do
 			local state = search_invs_item(invs_item)
 			if state then return state end
 		end

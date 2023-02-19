@@ -17,35 +17,35 @@ local function _is_parent(first, final)
 end
 
 local function _execute_handlers(output, input, output_handler, input_handler, item_name, amount)
-	local previous_handlers = {}
+	local previous_handlers_removed = {}
 	local successful = true
 	while true do
-		if output:_handleItemRemoved(item_name, amount, previous_handlers) == false then
+		if output:_handleItemRemoved(item_name, amount, previous_handlers_removed) == false then
 			successful = false
 		end
-		table.insert(previous_handlers, output)
+		table.insert(previous_handlers_removed, output)
 
 		output = output.parent
 		if not output then
 			break
 		elseif output == output_handler then
-			output:_handleItemRemoved(item_name, amount, previous_handlers)
+			output:_handleItemRemoved(item_name, amount, previous_handlers_removed)
 			break
 		end
 	end
 
-	local previous_handlers = {}
+	local previous_handlers_added = {}
 	while true do
-		if input:_handleItemAdded(item_name, amount, previous_handlers) == false then
+		if input:_handleItemAdded(item_name, amount, previous_handlers_added) == false then
 			successful = false
 		end
-		table.insert(previous_handlers, input)
+		table.insert(previous_handlers_added, input)
 
 		input = input.parent
 		if not input then
 			break
 		elseif input == input_handler then
-			input:_handleItemAdded(item_name, amount, previous_handlers)
+			input:_handleItemAdded(item_name, amount, previous_handlers_added)
 			break
 		end
 	end
@@ -86,7 +86,7 @@ local function transfer(output, input, output_handler, input_handler, item_name,
 	else
 		upper_bound = function() return nil end
 	end
-	
+
 	while output:itemIsAvailable(item_name) and input_state and output_state and (not limit or moved < limit) do
 		repeat
 			-- Moving item
@@ -163,16 +163,19 @@ end
 -- Returns whether `item_name` is available (for output) in the state. `item_name` may be `nil` for any item.
 AbstractState.itemIsAvailable = AbstractState.hasItem
 
+---@diagnostic disable-next-line: unused-local
 function AbstractState:_moveItem(targetState, limit)
 	error('abstract method "_moveItem" not implemented')
 end
 
 -- Executes when an item is removed to the state.
+---@diagnostic disable-next-line: unused-local
 function AbstractState:_handleItemAdded(item_name, amount, previous_handlers)
 	error('abstract method "_handleItemAdded" not implemented')
 end
 
 -- Executes when an item is added to the state.
+---@diagnostic disable-next-line: unused-local
 function AbstractState:_handleItemRemoved(item_name, amount, previous_handlers)
 	error('abstract method "_handleItemRemoved" not implemented')
 end
@@ -234,16 +237,19 @@ function AbstractInventory:new(args)
 end
 
 -- Returns whether `item_name` is available (for output) in the inventory.
+---@diagnostic disable-next-line: unused-local
 function AbstractInventory:itemIsAvailable(item_name)
 	error('abstract method "itemIsAvailable" not implemented')
 end
 
 -- Executes when an item is added to the inventory.
+---@diagnostic disable-next-line: unused-local
 function AbstractInventory:_handleItemAdded(item_name, amount)
 	error('abstract method "_handleItemAdded" not implemented')
 end
 
 -- Executes when an item is removed from the inventory.
+---@diagnostic disable-next-line: unused-local
 function AbstractInventory:_handleItemRemoved(item_name, amount)
 	error('abstract method "_handleItemRemoved" not implemented')
 end
@@ -273,6 +279,7 @@ function AbstractCluster:save_data()
 	error('abstract method "save_data" not implemented')
 end
 -- Loads the cluster's data (in the same format as the 'save_data' function).
+---@diagnostic disable-next-line: unused-local
 function AbstractCluster:load_data(data)
 	error('abstract method "load_data" not implemented')
 end
@@ -281,10 +288,12 @@ function AbstractCluster:data_path()
 	error('abstract method "data_path" not implemented')
 end
 -- Returns whether `itemName` exists in the cluster.
+---@diagnostic disable-next-line: unused-local
 function AbstractCluster:hasItem(itemName)
 	error('abstract method "hasItem" not implemented')
 end
 -- Returns whether `item_name` is available (for output) in the cluster.
+---@diagnostic disable-next-line: unused-local
 function AbstractCluster:itemIsAvailable(item_name)
 	error('abstract method "itemIsAvailable" not implemented')
 end
@@ -293,34 +302,42 @@ function AbstractCluster:itemNames()
 	error('abstract method "itemNames" not implemented')
 end
 -- Is called when the cluster is the target of a moved item. This should be used for bookeeping, such as updating the amount of items in storage and internal data structures.
+---@diagnostic disable-next-line: unused-local
 function AbstractCluster:_addedTo(state, itemName, count)
 	error('abstract method "_addedTo" not implemented')
 end
 -- Is called when the cluster is the origin of a moved item. This should be used for bookeeping, such as updating the amount of items in storage and internal data structures.
+---@diagnostic disable-next-line: unused-local
 function AbstractCluster:_removedFrom(state, itemName, count)
 	error('abstract method "_removedFrom" not implemented')
 end
 -- Returns a state where `itemName` can be inserted to. Returns 'nil' if none are available.
+---@diagnostic disable-next-line: unused-local
 function AbstractCluster:inputState(itemName)
 	error('abstract method "inputState" not implemented')
 end
 -- Returns a state from which `itemName` can be drawn from. Returns 'nil' if none are available.
+---@diagnostic disable-next-line: unused-local
 function AbstractCluster:outputState(itemName)
 	error('abstract method "outputState" not implemented')
 end
 -- Adds a new inventory to the cluster. Data for the inventory may be build.
+---@diagnostic disable-next-line: unused-local
 function AbstractCluster:registerInventory(inv_name)
 	error('abstract method "registerInventory" not implemented')
 end
 -- Removes an inventory from the cluster. Data from the inventory may be deleted.
+---@diagnostic disable-next-line: unused-local
 function AbstractCluster:unregisterInventory(inv_name)
 	error('abstract method "unregisterInventory" not implemented')
 end
 -- Executes when an item is added to the cluster.
+---@diagnostic disable-next-line: unused-local
 function AbstractCluster:_handleItemAdded(item_name, amount)
 	error('abstract method "_handleItemAdded" not implemented')
 end
 -- Executes when an item is removed from the cluster.
+---@diagnostic disable-next-line: unused-local
 function AbstractCluster:_handleItemRemoved(item_name, amount)
 	error('abstract method "_handleItemRemoved" not implemented')
 end

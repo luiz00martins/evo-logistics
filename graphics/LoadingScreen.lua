@@ -1,6 +1,7 @@
 require "UIContainer"
 require "UIText"
 
+-- FIXME: Change this to basalt
 class "LoadingScreen" extends "UIContainer" {
 	steps = nil,
 	current_step = 1,
@@ -54,6 +55,6 @@ function LoadingScreen:run_next()
 		self.textbox.text = self.textbox.text..next_task.text
 		self:draw()
 	end
-	
+
 	return return_value
 end

@@ -68,7 +68,7 @@ function InterfacePage:_setListSize(size)
 				:setPosition(width-CLUSTERS_DISPLAY_SIZE+2, i+1)
 				:setSize(CLUSTERS_DISPLAY_SIZE, 1)
 				:setValue('Cancel')
-			
+		
 			self.textfields[i] = textfield
 			self.buttons[i] = button
 		end

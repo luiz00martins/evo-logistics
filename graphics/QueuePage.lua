@@ -1,24 +1,16 @@
 local utils = require('/logos.utils')
 local queue = require('logistics.utils.queue')
-local graphics_utils = require('graphics.utils')
-local basalt = require('/basalt')
 
-local get_connected_inventories = utils.get_connected_inventories
-local array_filter = utils.array_filter
-local array_map = utils.array_map
-local get_order = utils.get_order
 local new_class = utils.new_class
-local visual_button = graphics_utils.visual_button
 
-local width, height = TERMINAL_WIDTH-2, TERMINAL_HEIGHT-1
+local width, _ = TERMINAL_WIDTH-2, TERMINAL_HEIGHT-1
 
 local QueuePage = new_class()
 
 local CLUSTERS_DISPLAY_SIZE = 12
 
-function QueuePage:new(main, clusters)
+function QueuePage:new(main)
 	local queue_page = {}
-
 
 	local main_frame = main:addFrame("QueuePage_main_frame")
 		:setPosition(1,2)
@@ -52,7 +44,7 @@ function QueuePage:_setListSize(size)
 				:setPosition(width-CLUSTERS_DISPLAY_SIZE+2, i+1)
 				:setSize(CLUSTERS_DISPLAY_SIZE, 1)
 				:setValue('Cancel')
-			
+
 			self.textfields[i] = textfield
 			self.buttons[i] = button
 		end

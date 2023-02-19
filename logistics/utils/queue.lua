@@ -1,6 +1,6 @@
 local dl_list = require('logistics.utils.dl_list')
 
-queue = {
+local queue = {
 	scheduled = dl_list(),
 	executing = dl_list(),
 }

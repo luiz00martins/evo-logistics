@@ -1,3 +1,4 @@
+---@diagnostic disable: need-check-nil
 local utils = require('/logos.utils')
 local dl_list = require('/logos.logistics.utils.dl_list')
 local core = require('/logos.logistics.storage.core')
@@ -15,7 +16,7 @@ local AbstractCluster = core.AbstractCluster
 local BulkState = new_class(StandardState)
 
 -- NOTE: These handle the fact that update makes 'state.full = false'. Which means that the call for 'inputState()' inside 'transfer' will result in an infinite loop, because it checks for 'state.full'. If that check disappears, these can go.
-function BulkState:_handleItemAdded(item_name, amount, previous_handlers)
+function BulkState:_handleItemAdded(_, amount, _)
 	self:update()
 	if amount == 0 then
 		self.full = true
@@ -23,19 +24,13 @@ function BulkState:_handleItemAdded(item_name, amount, previous_handlers)
 	--StandardState._handleItemAdded(self, item_name, amount, previous_handlers)
 end
 
-function BulkState:_handleItemRemoved(item_name, amount, previous_handlers)
+function BulkState:_handleItemRemoved(_, _, _)
 	self:update()
 	--StandardState._handleItemRemoved(self, item_name, amount, previous_handlers)
 end
 
 ---------------------------------------------------------
 -- Bulk Storage Cluster
-
-local BulkMode = {
-	NORMAL = 1, -- This represents standard storages, with muiltiple slots with a max of 64 items (e.g. chests).
-	IO_SLOTS = 2, -- This represets a storage with one input slot, and one output slot (e.g. Tech Reborn's Deep Storage).
-	BIG_SLOTS = 3, -- This represents a storage with one or multiple large slot(s) (e.g. Dank Storage).
-}
 
 local BulkInv = {
 	NORMAL = new_class(AbstractInventory),
@@ -95,8 +90,6 @@ function BulkInv.NORMAL:catalog()
 			error("bulk inventory "..self.name.." contains two different items("..self.itemName.." and "..item_name..")")
 		end
 	end
-
-	return
 end
 
 function BulkInv.IO_SLOTS:catalog()
@@ -199,14 +192,14 @@ function BulkInv.NORMAL:_handleItemAdded(item_name, amount, previous_handlers)
 end
 
 local MAX_UPDATE_WAIT_TIME = 0.02
-function BulkInv.IO_SLOTS:_handleItemAdded(item_name, amount, previous_handlers)
+function BulkInv.IO_SLOTS:_handleItemAdded(_, amount, _)
 	self.count = self.count + amount
 end
 
 function BulkInv.NORMAL:_handleItemRemoved(item_name, amount, previous_handlers)
 end
 
-function BulkInv.IO_SLOTS:_handleItemRemoved(item_name, amount, previous_handlers)
+function BulkInv.IO_SLOTS:_handleItemRemoved(_, amount, _)
 	self.count = self.count - amount
 end
 
@@ -234,6 +227,7 @@ function BulkInv.IO_SLOTS:registerItem(item_name)
 end
 
 function BulkInv.NORMAL:registerItem(item_name)
+	-- TODO:
 	error('TODO')
 end
 
@@ -250,10 +244,11 @@ function BulkInv.IO_SLOTS:unregisterItem(item_name)
 end
 
 function BulkInv.NORMAL:unregisterItem(item_name)
+	-- TODO:
 	error('TODO')
 end
 
-function BulkInv.NORMAL:recount(emptyInvs)
+function BulkInv.NORMAL:recount(_)
 	self:catalog()
 end
 
@@ -326,7 +321,7 @@ function BulkInv.IO_SLOTS:recount(emptyInvs)
 
 	-- Undo all moves.
 	for _,inv in pairs(emptyInvs) do
-		local justMoved = inv:_bareTransferAll(self) 
+		local justMoved = inv:_bareTransferAll(self)
 		inv:update()
 		if justMoved == 0 then
 			break
@@ -409,7 +404,7 @@ function BulkCluster:setItemInventory(inv_name, item_name)
 			self._itemCount[item_name] = self._itemCount[item_name] or 0
 			inv.itemName = item_name
 			table.insert(self.invsWithItem[item_name], inv)
-			
+
 			return
 		end
 	end
@@ -506,7 +501,7 @@ function BulkCluster:refresh()
 	end
 end
 
-function BulkCluster:save_data(path)
+function BulkCluster:save_data()
 	local inv_names = array_map(self.invs, function(inv) return inv.name end)
 	local inv_items = array_map(self.invs, function(inv)
 		return inv.itemName
@@ -596,8 +591,8 @@ function BulkCluster:itemIsAvailable(item_name)
 	end
 
 	if not item_name then
-		for item_name,invs_item in pairs(self.invsWithItem) do
-			if item_name ~= 'empty' and search_invs_item(invs_item) then
+		for _item_name,invs_item in pairs(self.invsWithItem) do
+			if _item_name ~= 'empty' and search_invs_item(invs_item) then
 				return true
 			end
 		end
@@ -645,7 +640,7 @@ function BulkCluster:inputState(item_name)
 	if not self.invsWithItem[item_name] then
 		return nil
 	end
-	
+
 	local state
 	for _, inv in pairs(self.invsWithItem[item_name]) do
 		state = inv:inputState()
@@ -673,7 +668,7 @@ function BulkCluster:outputState(item_name)
 	end
 
 	if not item_name then
-		for item_name, invs_item in pairs(self.invsWithItem) do
+		for _, invs_item in pairs(self.invsWithItem) do
 			local state = search_invs_item(invs_item)
 			if state then return state end
 		end

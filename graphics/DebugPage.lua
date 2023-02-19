@@ -1,5 +1,4 @@
 local utils = require('logistics.utils.utils')
-local basalt = require('/basalt')
 
 local array_map = utils.array_map
 local new_class = utils.new_class

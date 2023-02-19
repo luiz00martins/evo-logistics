@@ -2,7 +2,6 @@ local utils = require('/logos.utils')
 local graphics_utils = require('graphics.utils')
 local SearchableList = require('graphics.SearchableList')
 
-local array_filter = utils.array_filter
 local new_class = utils.new_class
 local visual_button = graphics_utils.visual_button
 
@@ -19,7 +18,7 @@ function SearchPicker:new(args)
 		newSearchPicker.search_bar:setValue('')
 	end
 
-	function newSearchPicker.searcher(button_data, query)
+	function newSearchPicker.searcher(_, query)
 		return string.find(newSearchPicker.search_bar:getValue(), query)
 	end
 
@@ -54,9 +53,7 @@ function SearchPicker:new(args)
 		-- TEMP: See https://github.com/Pyroxenium/Basalt/issues/38. 
 		:setZIndex(1001)
 
-	local main_frame_width, _ = newSearchPicker.main_frame:getSize()
-
-	newSearchPicker.search_bar:onKey(function(_, event, key)
+	newSearchPicker.search_bar:onKey(function(_, _, key)
 		-- Enter
 		if key == 257 then
 			run_and_exit(newSearchPicker.items[newSearchPicker.matching_items[1]])

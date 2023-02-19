@@ -56,7 +56,7 @@ function StandardState:_moveItem(targetState, limit)
 end
 
 -- Adds `amount` of `itemName` to the slot.
-function StandardState:_handleItemAdded(item_name, amount, previous_handlers)
+function StandardState:_handleItemAdded(item_name, amount, _)
 	if amount == 0 then
 		self.full = true
 	end
@@ -75,7 +75,7 @@ function StandardState:_handleItemAdded(item_name, amount, previous_handlers)
 end
 
 -- Removes `amount` items from the slot.
-function StandardState:_handleItemRemoved(item_name, amount, previous_handlers)
+function StandardState:_handleItemRemoved(item_name, amount, _)
 	self.full = false
 
 	if self:itemName() == item_name then
@@ -351,7 +351,7 @@ end
 local StandardCluster = new_class(AbstractCluster)
 function StandardCluster:new(args)
 	local newCluster = AbstractCluster:new(args)
-	
+
 	newCluster._itemCount = {}
 
 	setmetatable(newCluster, StandardCluster)
@@ -361,7 +361,7 @@ end
 -- TODO: CHANGE THIS
 function StandardCluster:inputState(item_name)
 	-- TODO: This for loop is O(n). Make this a linked list of inventories. Same as 'Inventory <-> States', make 'Cluster <-> Inventories'.
-	for i,inv in reversed_ipairs(self.invs) do
+	for _,inv in reversed_ipairs(self.invs) do
 		if inv:hasItem(item_name) then
 			local input_state = inv:inputState(item_name, false)
 
@@ -373,7 +373,7 @@ function StandardCluster:inputState(item_name)
 		end
 	end
 
-	for i,inv in ipairs(self.invs) do
+	for _,inv in ipairs(self.invs) do
 		local input_state = inv:inputState(item_name, true)
 
 		if input_state then
@@ -386,7 +386,7 @@ end
 
 -- TODO: CHANGE THIS
 function StandardCluster:outputState(item_name)
-	for i,inv in reversed_ipairs(self.invs) do
+	for _,inv in reversed_ipairs(self.invs) do
 		local output_state = inv:outputState(item_name)
 
 		if output_state then return output_state end
@@ -488,14 +488,14 @@ function StandardCluster:itemNames()
 	return item_names
 end
 
-function StandardCluster:_handleItemAdded(item_name, amount, previous_handlers)
+function StandardCluster:_handleItemAdded(item_name, amount, _)
 	if amount == 0 then return true end
 
 	-- Updating item count.
 	self._itemCount[item_name] = (self._itemCount[item_name] or 0) + amount
 end
 
-function StandardCluster:_handleItemRemoved(item_name, amount, previous_handlers)
+function StandardCluster:_handleItemRemoved(item_name, amount, _)
 	if amount == 0 then return true end
 
 	self._itemCount[item_name] = self._itemCount[item_name] - amount

@@ -10,7 +10,6 @@ local queue = require('logistics.utils.queue')
 
 string.split = utils.string_split
 
-local getOrder = utils.getOrder
 local transfer = require('logistics.storage.core').transfer
 local StandardCluster = require('logistics.storage.standard').StandardCluster
 local BulkCluster = require('logistics.storage.bulk').BulkCluster
@@ -84,7 +83,7 @@ local function storeAll()
 	end
 
 	for itemName,_ in pairs(notStored) do
-		--devIO:stdout_write("WARNING: '"..itemName.."' not stored (inventory full)")
+		utils.log("WARNING: '"..itemName.."' not stored (inventory full)")
 	end
 
 	return true
@@ -105,45 +104,14 @@ local function load_clusters()
 	end
 end
 
-local function get_items_data()
-	local clusters = {barrel_storage, bulk_storage, main_storage}
-
-	local cmp = function(a,b)
-		-- `nil` is interpreted as infinity for de purposes of ordering.
-		if a == nil then
-			return true
-		elseif b == nil then
-			return false
-		else
-			return a > b
-		end
-	end
-
-	local items_data = {}
-
-	for _,cluster in ipairs(clusters) do
-		for _,item_name in ipairs(getOrder(cluster._itemCount, cmp)) do
-			local i = #items_data+1
-
-			items_data[#items_data+1] = {
-				name = item_name,
-				count = cluster._itemCount[item_name],
-				cluster = cluster,
-			}
-		end
-	end
-
-	return items_data
-end
-
-local w, h = term.getSize()
+local w, _ = term.getSize()
 
 local main = basalt.createFrame("mainFrame")
 local main_page = MainPage:new(main, io_storage, crafting_cluster, storage_clusters, save_clusters)
 local inventories_page = InventoriesPage:new(main, clusters)
 local crafting_page = CraftingPage:new(main, crafting_cluster, storage_clusters)
-local queue_page = QueuePage:new(main, crafting_cluster, storage_clusters)
-local interface_page = InterfacePage:new(main, interface_cluster, storage_clusters)
+local queue_page = QueuePage:new(main)
+local interface_page = InterfacePage:new(main, interface_cluster)
 
 local extra_page = ExtraPage:new(main, {
 	{

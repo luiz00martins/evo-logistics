@@ -1,11 +1,8 @@
 local utils = require('/logos.utils')
-local dl_list = require('/logos.logistics.utils.dl_list')
 local core = require('/logos.logistics.storage.core')
 local standard = require('/logos.logistics.storage.standard')
 
-local table_reduce = utils.table_reduce
 local get_order = utils.get_order
-local reversed_ipairs = utils.reversed_ipairs
 local new_class = utils.new_class
 
 local StandardState = standard.StandardState
@@ -87,7 +84,7 @@ OrderedInventory.refresh = OrderedInventory.catalog
 local OrderedCluster = new_class(StandardCluster)
 function OrderedCluster:new(args)
 	local newCluster = StandardCluster:new(args)
-	
+
 	setmetatable(newCluster, OrderedCluster)
 	return newCluster
 end
@@ -192,7 +189,7 @@ function OrderedCluster:packItem(item_name)
 	if not self:hasItem(item_name) then
 		error("There's no item "..item_name.."in cluster "..self.name)
 	end
- 
+
 	-- NOTE: We create a new list for it, because all the moving and swapping will change the properties of the inventorie's inner list mid-execution. The following list on the other hand, will be stable till the end of execution.
 	local item_states = {}
 	for _, inv in ipairs(self.invs) do

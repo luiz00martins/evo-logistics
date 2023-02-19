@@ -1,29 +1,11 @@
 local utils = require('/logos.utils')
 local queue = require('logistics.utils.queue')
-local graphics_utils = require('graphics.utils')
-local basalt = require('/basalt')
 
 local get_connected_inventories = utils.get_connected_inventories
 local array_map = utils.array_map
 local new_class = utils.new_class
 
-local width, height = TERMINAL_WIDTH-2, TERMINAL_HEIGHT-1
-
-local function filter(tbl, str)
-	if not str then
-		return tbl
-	end
-
-	local filtered = {}
-
-	for _,s in ipairs(tbl) do
-		if s:find(str) then
-			filtered[#filtered+1] = s
-		end
-	end
-
-	return filtered
-end
+local width, _ = TERMINAL_WIDTH-2, TERMINAL_HEIGHT-1
 
 local InventoriesPage = new_class()
 
@@ -96,7 +78,7 @@ function InventoriesPage:refresh()
 
 	local remaining_components = {}
 
-	for i,inv_name in ipairs(inv_names) do
+	for _,inv_name in ipairs(inv_names) do
 		if inv_components[inv_name] then
 			remaining_components[inv_name] = inv_components[inv_name]
 		else
@@ -125,7 +107,7 @@ function InventoriesPage:refresh()
 
 			dropdown.previous_selection = dropdown:getItemIndex()
 
-			dropdown:onChange(function(dropdown)
+			dropdown:onChange(function(_)
 				local selected_option = dropdown:getItemIndex()
 				local oldCluster = self.clusters[dropdown.previous_selection]
 
@@ -175,7 +157,7 @@ function InventoriesPage:refresh()
 
 	local size = #self.inv_components
 	local i = 1
-	for inv_name,components in pairs(self.inv_components) do
+	for _,components in pairs(self.inv_components) do
 		self.textfields[i] = components.button:setPosition(2, i+1)
 		self.dropdowns[i] = components.dropdown:setPosition(width-CLUSTERS_DISPLAY_SIZE+2, i+1)
 

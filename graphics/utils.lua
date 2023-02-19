@@ -1,10 +1,7 @@
-local utils = require('/logos.utils')
-local basalt = require('/basalt')
-
 local function visual_button(btn)
-    btn:onClick(function(self) btn:setBackground(colors.black) btn:setForeground(colors.lightGray) end)
-    btn:onClickUp(function(self) btn:setBackground(colors.gray) btn:setForeground(colors.black) end)
-    btn:onLoseFocus(function(self) btn:setBackground(colors.gray) btn:setForeground(colors.black) end)
+    btn:onClick(function(_) btn:setBackground(colors.black) btn:setForeground(colors.lightGray) end)
+    btn:onClickUp(function(_) btn:setBackground(colors.gray) btn:setForeground(colors.black) end)
+    btn:onLoseFocus(function(_) btn:setBackground(colors.gray) btn:setForeground(colors.black) end)
 end
 
 local subframe_depth = {}

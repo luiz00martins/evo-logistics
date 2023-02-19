@@ -1,9 +1,6 @@
 local utils = require('/logos.utils')
-local graphics_utils = require('graphics.utils')
 
-local array_filter = utils.array_filter
 local new_class = utils.new_class
-local visual_button = graphics_utils.visual_button
 
 local SearchableList = new_class()
 
@@ -83,7 +80,7 @@ function SearchableList:refresh()
 
 	self.matching_items = {}
 
-	local item_width, item_height = self.items[1]:getSize()
+	local _, item_height = self.items[1]:getSize()
 	for i, item in ipairs(self.items) do
 		if self.searcher(self.data[i], self.search_bar:getValue()) then
 			table.insert(self.matching_items, i)

@@ -128,7 +128,7 @@ function InterfaceCluster:new(args)
 		passive_imports = {},
 		passive_exports = {},
 	}
-	
+
 	setmetatable(newCluster, InterfaceCluster)
 	return newCluster
 end
@@ -160,7 +160,7 @@ function InterfaceCluster:registerConfig(config)
 
 	local inv_name = config.inv_name
 	config.inv_name = nil
-	
+
 	local inv
 	for _,invv in ipairs(self.invs) do
 		if invv.name == inv_name then
@@ -176,7 +176,7 @@ end
 
 function InterfaceCluster:_execute_active_imports()
 	for _,config in pairs(self.active_imports) do
-		
+
 	end
 
 	local function active_import(slot, item_name, amount)

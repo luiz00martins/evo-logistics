@@ -1,7 +1,6 @@
 local utils = require('/logos.utils')
 local queue = require('logistics.utils.queue')
 local graphics_utils = require('graphics.utils')
-local basalt = require('/basalt')
 
 local table_shallowcopy = utils.table_shallowcopy
 local array_map = utils.array_map
@@ -20,7 +19,7 @@ local function format_item_count(count)
 	local normalized_count = count
 	local magnitude = ''
 
-	for i,m in ipairs(ITEM_COUNT_FORMATS) do
+	for _,m in ipairs(ITEM_COUNT_FORMATS) do
 		if normalized_count > 1000 then
 			magnitude = m
 			normalized_count = normalized_count / 1000
@@ -33,12 +32,13 @@ local function format_item_count(count)
 	if normalized_string:sub(#normalized_string, #normalized_string) == '.' then
 		normalized_string = normalized_string:sub(1,#normalized_string-1)
 	end
-		
+
 	return normalized_string..string.rep(' ', ITEM_COUNT_SIZE - (1 + #normalized_string))..magnitude
 end
 
 local MainPage = new_class()
 
+-- FIXME: Use 'callback' argument
 function MainPage:new(main, ioStor, crafting_cluster, storage_clusters, callback)
 	local main_page = {}
 
@@ -70,15 +70,13 @@ function MainPage:new(main, ioStor, crafting_cluster, storage_clusters, callback
 		main_page:updateList(search_box:getValue() or '')
 	end
 
-	search_box:onChange(function(self)
+	search_box:onChange(function(_)
 		refresh_search()
 	end)
 
-	amount_input:onChange(function(self)
+	amount_input:onChange(function(_)
 		refresh_search()
 	end)
-
-	local item_name
 
 	-- Set up rows.
 	local item_buttons = {}
@@ -171,7 +169,7 @@ function MainPage:new(main, ioStor, crafting_cluster, storage_clusters, callback
 				end
 			}
 		end)
-			
+	
 		item_buttons[i] = button
 		item_counts[i] = count
 	end
@@ -188,7 +186,7 @@ function MainPage:new(main, ioStor, crafting_cluster, storage_clusters, callback
 	setmetatable(main_page, MainPage)
 
 	main_page:refresh()
-	
+
 	return main_page
 end
 
@@ -225,8 +223,6 @@ function MainPage:updateList(search_text)
 end
 
 function MainPage:refresh()
-	local utils = require'utils'
-
 	local items_data_array = {}
 	local items_data_table = {}
 	local tracker = {}

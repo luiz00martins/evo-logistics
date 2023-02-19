@@ -21,7 +21,7 @@ function dl_list:push(t)
     self.first = t
     self.last = t
   end
-  
+
   self.length = self.length + 1
 end
 
@@ -34,7 +34,7 @@ function dl_list:unshift(t)
     self.first = t
     self.last = t
   end
-  
+
   self.length = self.length + 1
 end
 
@@ -46,8 +46,8 @@ function dl_list:insert(t, after)
     else
       self.last = t
     end
-    
-    t._prev = after    
+
+    t._prev = after
     after._next = t
     self.length = self.length + 1
   elseif not self.first then
@@ -60,7 +60,7 @@ end
 function dl_list:pop()
   if not self.last then return end
   local ret = self.last
-  
+
   if ret._prev then
     ret._prev._next = nil
     self.last = ret._prev
@@ -70,7 +70,7 @@ function dl_list:pop()
     self.first = nil
     self.last = nil
   end
-  
+
   self.length = self.length - 1
   return ret
 end
@@ -78,7 +78,7 @@ end
 function dl_list:shift()
   if not self.first then return end
   local ret = self.first
-  
+
   if ret._next then
     ret._next._prev = nil
     self.first = ret._next
@@ -87,7 +87,7 @@ function dl_list:shift()
     self.first = nil
     self.last = nil
   end
-  
+
   self.length = self.length - 1
   return ret
 end
@@ -127,7 +127,7 @@ local function iterate(self, current)
   elseif current then
     current = current._next
   end
-  
+
   return current
 end
 
