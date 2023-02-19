@@ -1,94 +1,91 @@
 local utils = require('/logos.utils')
 local graphics_utils = require('graphics.utils')
+local SearchableList = require('graphics.SearchableList')
 
 local array_filter = utils.array_filter
 local new_class = utils.new_class
 local visual_button = graphics_utils.visual_button
 
-local SearchPicker = new_class()
+local SearchPicker = new_class(SearchableList)
 
-function SearchPicker:new(parent)
-	local width, height = parent:getSize()
+function SearchPicker:new(args)
+	local newSearchPicker = SearchableList.new(self, args)
 
-	local search_picker = {}
-
-	local main_frame = parent:addFrame('picker_window')
-		:setPosition(2, 3)
-		:setSize(width-2, height-4)
-		:setBackground(colors.black)
-		:setZIndex(1000)
-		:hide()
-
-	local self_width, self_height = main_frame:getSize()
-	
-	local options = options or {}
-	local handler = handler or function(picked) end
-	local input = main_frame:addInput('input')
-		:setPosition(2, 2)
-		:setSize(self_width-2, 1)
-		:setDefaultText('Item Name')
+	newSearchPicker.handler = args.handler
 
 	local function run_and_exit(button)
-		search_picker.handler(button:getValue())
-		search_picker.main_frame:hide()
-		input:setValue('')
+		newSearchPicker.handler(button:getValue())
+		newSearchPicker.main_frame:hide()
+		newSearchPicker.search_bar:setValue('')
 	end
 
-	local buttons = {}
-	for i=1,height-7 do
-		local button = main_frame:addButton('button_'..tostring(i))
-			:setPosition(2, i+2)
-			:setSize(self_width-2, 1)
-			:setValue('')
+	function newSearchPicker.searcher(button_data, query)
+		return string.find(newSearchPicker.search_bar:getValue(), query)
+	end
+
+	function newSearchPicker.item_builder(parent, button_data, index)
+		local width, _ = parent:getSize()
+
+		local button = parent:addButton('button_'..index)
+			:setSize(width - 2, 1)
+			:setValue(button_data)
+			-- TEMP: See https://github.com/Pyroxenium/Basalt/issues/38. 
+			:setZIndex(1001)
 
 		button:onClick(function()
 			run_and_exit(button)
 		end)
 		visual_button(button)
 
-		buttons[i] = button
+		return button
 	end
-	
-	input:onChange(function()
-		search_picker:refresh()
-	end)
 
-	input:onKey(function(_, event, key)
+	local parent_width, parent_height = args.parent:getSize()
+	newSearchPicker.main_frame
+		:setPosition(2, 4)
+		:setSize(parent_width-2, parent_height-6)
+		--:setBackground(colors.black)
+		:setZIndex(1000)
+
+	newSearchPicker.search_bar
+		:setPosition(1, 1)
+		:setSize(parent_width, 1)
+		:setDefaultText('Search Text')
+		-- TEMP: See https://github.com/Pyroxenium/Basalt/issues/38. 
+		:setZIndex(1001)
+
+	local main_frame_width, _ = newSearchPicker.main_frame:getSize()
+
+	newSearchPicker.search_bar:onKey(function(_, event, key)
 		-- Enter
 		if key == 257 then
-			run_and_exit(buttons[1])
+			run_and_exit(newSearchPicker.items[newSearchPicker.matching_items[1]])
 		end
 	end)
 
-	search_picker.main_frame = main_frame
-	search_picker.options = options
-	search_picker.handler = handler
-	search_picker.input = input
-	search_picker.buttons = buttons
+	setmetatable(newSearchPicker, SearchPicker)
 
-	setmetatable(search_picker, SearchPicker)
-
-	return search_picker
+	return newSearchPicker
 end
-
-function SearchPicker:refresh()
-	local options = self.options
-	if type(options) == 'function' then
-		options = options()
-	end
-
-	local text = self.input:getValue()
-	local matching = array_filter(self.options, function(v) return v:find(text) end)
-
-	for i=1,#self.buttons do
-		local match = matching[i]
-		if match then
-			self.buttons[i]:setValue(match)
-		else
-			self.buttons[i]:setValue('')
-		end
-	end	
-end
+--
+--function SearchPicker:refresh()
+--  local options = self.options
+--  if type(options) == 'function' then
+--    options = options()
+--  end
+--
+--  local text = self.input:getValue()
+--  local matching = array_filter(self.options, function(v) return v:find(text) end)
+--
+--  for i=1,#self.buttons do
+--    local match = matching[i]
+--    if match then
+--      self.buttons[i]:setValue(match)
+--    else
+--      self.buttons[i]:setValue('')
+--    end
+--  end
+--end
 
 function SearchPicker:show()
 	self.main_frame:show()
@@ -100,7 +97,7 @@ end
 
 function SearchPicker:setFocus()
 	self.main_frame:setFocus()
-	self.input:setFocus()
+	self.search_bar:setFocus()
 end
 
 return SearchPicker

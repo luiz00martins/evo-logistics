@@ -1,6 +1,7 @@
 local getOrder = require('utils').getOrder
 
 local core = require('core')
+local utils = require('logos.utils')
 local StorageCluster = core.StorageCluster
 local BulkCluster = core.BulkCluster
 
