@@ -83,8 +83,6 @@ function InterfaceInventory:outputState(item_name)
 	self:refresh()
 	for slot,config in pairs(self.config_types.passive_export) do
 		local state = self.states[slot]
-		utils.log({'STATE:', state:hasItem(item_name)}, 2)
-		utils.log({config.item_name, item_name}, 2)
 		if (not config.item_name or not item_name or config.item_name == item_name) and state:hasItem(item_name) then
 			return state
 		end

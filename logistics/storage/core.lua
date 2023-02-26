@@ -1,110 +1,119 @@
 local utils = require('/logos.utils')
 local new_class = utils.new_class
 
+local function _executeTransactionOperation(args)
+	-- Validating arguments.
+	if not args then error('missing args')
+	elseif not args.source then error('missing argument source')
+	elseif not args.target then error('missing argument target')
+	elseif not args.operation then error('missing argument operation') end
 
-local function _is_parent(first, final)
-	if not first then error('"first" argument not provided') end
-	if not final or first == final then return true end
-
-	local current = first.parent
-	-- WARNING: This _will_ infinite loop on a cycle. However, there should not be any parenting cycles, so if that happens, it's an error on the caller.
-	while current do
-		if current == final then return true end
-		current = current.parent
-	end
-
-	return false
-end
-
-local function _execute_handlers(output, input, output_handler, input_handler, item_name, amount)
-	local previous_handlers_removed = {}
-	local successful = true
-	while true do
-		if output:_handleItemRemoved(item_name, amount, previous_handlers_removed) == false then
-			successful = false
-		end
-		table.insert(previous_handlers_removed, output)
-
-		output = output.parent
-		if not output then
-			break
-		elseif output == output_handler then
-			output:_handleItemRemoved(item_name, amount, previous_handlers_removed)
-			break
+	if args.limit then
+		if args.limit and args.limit < 1 then error('argument limit must be greater than 0')
+		elseif args.limit and args.limit > args.source:itemCount(args.item_name) then error('limit must be less than or equal to the amount of items in the cluster ('..utils.tostring(args.limit)..'/'..utils.tostring(args.source:itemCount(args.item_name))..')')
 		end
 	end
 
-	local previous_handlers_added = {}
-	while true do
-		if input:_handleItemAdded(item_name, amount, previous_handlers_added) == false then
-			successful = false
+	local source = args.source
+	local target = args.target
+	local operation = args.operation
+	local item_name = args.item_name
+	local limit = args.limit or source:itemCount(item_name)
+
+	-- Moving items.
+	local execute_operation
+	if operation == 'push' then
+		execute_operation = function(output_components, input_components, _limit)
+			return source:_barePushItems(output_components, input_components, _limit)
 		end
-		table.insert(previous_handlers_added, input)
-
-		input = input.parent
-		if not input then
-			break
-		elseif input == input_handler then
-			input:_handleItemAdded(item_name, amount, previous_handlers_added)
-			break
+	elseif operation == 'pull' then
+		execute_operation = function(output_components, input_components, _limit)
+			return target:_barePullItems(output_components, input_components, _limit)
 		end
-	end
-
-	return successful
-end
-
--- 'input_handler' and 'output_handler' are the _highest_ handlers specified. This function will execute the handlers from the lowest level (State) to the highest specifies.
--- For example, if you specify 'self' self as a State and 'handler' as its Cluster, the order of execution will be (State -> Inventory -> Cluster). If you specify the 'handler' as its Inventory, the order of execution will be (State -> Inventory). If you specify the 'handler' as itself, it'll only update itself (State).
-local function transfer(output, input, output_handler, input_handler, item_name, limit)
-	-- NOTE: This is a very important line, and should not be removed.
-	-- This line guarantees that _no_ attempt will ever be made to move 0 items. This means that, if the amount of items moved is 0, then a move failed.
-	-- Therefore, it allows the handlers to detect failed moved attempts (such as filled slots).
-	if limit and limit <= 0 then return 0 end
-
-	output_handler = output_handler or output
-	input_handler = input_handler or input
-
-	if not _is_parent(output, output_handler) then
-		error((output_handler.name or 'nil')..' is not a parent of '..(output.name or 'nil'))
-	end
-	if not _is_parent(input, input_handler) then
-		error((input_handler.name or '<no name>')..' is not a parent of '..(input.name or '<no name>'))
-	end
-
-	local output_state = output:outputState(item_name)
-	local input_state
-	if output_state then
-		input_state = input:inputState(output_state:itemName())
 	else
-		return 0
+		error('invalid operation '..utils.tostring(operation))
 	end
+
 	local moved = 0
+	local max_tries = 3
+	local current_try = 0
+	while moved < limit do
+		local output_components = source:_getOutputComponents(item_name)
+		local input_components = target:_getInputComponents(item_name)
 
-	local upper_bound
-	if limit then
-		upper_bound = function() return limit-moved end
-	else
-		upper_bound = function() return nil end
-	end
+		if not output_components or not input_components then
+			if not output_components then
+				utils.log('no output components for '..utils.tostring(item_name))
+			else
+				utils.log('no input components for '..utils.tostring(item_name))
+			end
 
-	while output:itemIsAvailable(item_name) and input_state and output_state and (not limit or moved < limit) do
-		repeat
-			-- Moving item
-			local moved_item_name = output_state:itemName()
-			-- TODO: This should be a raw 'peripheral' operation.
-			local just_moved = output_state:_moveItem(input_state, upper_bound())
-			moved = moved + just_moved
+			break
+		end
 
-			local successful = _execute_handlers(output_state, input_state, output_handler, input_handler, moved_item_name, just_moved)
-		until successful
+		local just_moved, item_moved = execute_operation(output_components, input_components, limit - moved)
 
-		output_state = output:outputState(item_name)
-		if output_state then
-			input_state = input:inputState(output_state:itemName())
+		moved = moved + just_moved
+		
+		if just_moved == 0 then
+			current_try = current_try + 1
+		else
+			current_try = 0
+		end
+
+		if current_try >= max_tries then
+			utils.log('stuck in a loop, aborting')
+			break
+		end
+
+		-- NOTE: We do this because the components table contains a 'self' component, which is repeated. If we don't strip it, we will run the handler twice.
+		for _,component in pairs{state = output_components.state, inventory = output_components.inventory, cluster = output_components.cluster} do
+			component:_itemRemovedHandler(item_moved, just_moved, output_components)
+		end
+
+		for _,component in pairs{state = input_components.state, inventory = input_components.inventory, cluster = input_components.cluster} do
+			component:_itemAddedHandler(item_moved, just_moved, input_components)
 		end
 	end
 
 	return moved
+end
+
+local function pullItems(self, args)
+	return _executeTransactionOperation {
+		source = args.source,
+		target = self,
+		operation = 'pull',
+		item_name = args.item_name,
+		limit = args.limit
+	}
+end
+
+local function pushItems(self, args)
+	return _executeTransactionOperation {
+		source = self,
+		target = args.target,
+		operation = 'push',
+		item_name = args.item_name,
+		limit = args.limit
+	}
+end
+
+-- This function has the responsibility of checking priorities and delegating which internal functions should be called to execute the transfer of items.
+local function transfer(output, input, item_name, limit)
+	if output:_getPriority() >= input:_getPriority() then
+		return output:pushItems {
+			target = input,
+			item_name = item_name,
+			limit = limit,
+		}
+	else
+		return input:pullItems {
+			source = output,
+			item_name = item_name,
+			limit = limit,
+		}
+	end
 end
 
 --------------------------------
@@ -121,6 +130,7 @@ function AbstractState:new(args)
 		parent = args.parent,
 		_item = args.item,
 		slot = args.slot,
+		component_type = 'state',
 	}
 
 	setmetatable(newState, self)
@@ -180,45 +190,15 @@ function AbstractState:_handleItemRemoved(item_name, amount, previous_handlers)
 	error('abstract method "_handleItemRemoved" not implemented')
 end
 
--- [Maybe] TODO: Put this and 'inputState's implementation in `StandardState` (I mean, it literally references 'self.full' ffs).
-function AbstractState:outputState(item_name)
-	if not item_name then
-		if self:itemIsAvailable() then
-			return self
-		else
-			return nil
-		end
-	elseif item_name == self:itemName() then
-		return self
-	else
-		return nil
-	end
-end
-
-function AbstractState:inputState(item_name)
-	if not item_name then
-		if self:hasItem() then
-			return nil
-		else
-			return self
-		end
-	else
-		local self_item_name = self:itemName()
-		if self_item_name == 'empty' or item_name == self_item_name and not self.full then
-			return self
-		end
-
-		return nil
-	end
-end
-
+AbstractState.pushItems = pushItems
+AbstractState.pullItems = pullItems
 
 local AbstractInventory = new_class()
 function AbstractInventory:new(args)
 	if not args then error("missing args") end
 
 	local size
-	-- Barrel-type inventories do not have the 'size' property.
+	-- Barrel-type inventories do not have the 'size' property, so we have to check for it.
 	if utils.table_contains(peripheral.getMethods(args.name), 'size') then
 		size = peripheral.call(args.name, "size")
 	end
@@ -230,6 +210,7 @@ function AbstractInventory:new(args)
 		parent = args.parent,
 		size = size,
 		states = {},
+		component_type = 'inventory',
 	}
 
 	setmetatable(newInventory, self)
@@ -254,11 +235,15 @@ function AbstractInventory:_handleItemRemoved(item_name, amount)
 	error('abstract method "_handleItemRemoved" not implemented')
 end
 
+AbstractInventory.pushItems = pushItems
+AbstractInventory.pullItems = pullItems
+
 local AbstractCluster = new_class()
 function AbstractCluster:new(args)
 	local newCluster = {
 			name = args.name or '',
 			invs = args.invs or {},
+			component_type = 'cluster',
 		}
 
 	setmetatable(newCluster, self)
@@ -270,75 +255,66 @@ end
 function AbstractCluster:catalog()
 	error('abstract method "catalog" not implemented')
 end
+
 -- Refreshes data that is not normally saved and loaded (should be reasonably lightweight).
 function AbstractCluster:refresh()
 	error('abstract method "refresh" not implemented')
 end
+
 -- Returns the (serialized) cluster's data to be saved.
 function AbstractCluster:saveData()
 	error('abstract method "saveData" not implemented')
 end
+
 -- Loads the cluster's data (in the same format as the 'saveData' function).
 ---@diagnostic disable-next-line: unused-local
 function AbstractCluster:loadData(data)
 	error('abstract method "loadData" not implemented')
 end
+
 -- Returns the path to the cluster's data file.
 function AbstractCluster:dataPath()
 	error('abstract method "dataPath" not implemented')
 end
+
 -- Returns whether `itemName` exists in the cluster.
 ---@diagnostic disable-next-line: unused-local
 function AbstractCluster:hasItem(item_name)
 	error('abstract method "hasItem" not implemented')
 end
+
 -- Returns whether `item_name` is available (for output) in the cluster.
 ---@diagnostic disable-next-line: unused-local
 function AbstractCluster:itemIsAvailable(item_name)
 	error('abstract method "itemIsAvailable" not implemented')
 end
+
 -- Returns all items available in the cluster.
 function AbstractCluster:itemNames()
 	error('abstract method "itemNames" not implemented')
 end
--- Is called when the cluster is the target of a moved item. This should be used for bookeeping, such as updating the amount of items in storage and internal data structures.
----@diagnostic disable-next-line: unused-local
-function AbstractCluster:_addedTo(state, item_name, count)
-	error('abstract method "_addedTo" not implemented')
-end
--- Is called when the cluster is the origin of a moved item. This should be used for bookeeping, such as updating the amount of items in storage and internal data structures.
----@diagnostic disable-next-line: unused-local
-function AbstractCluster:_removedFrom(state, item_name, count)
-	error('abstract method "_removedFrom" not implemented')
-end
--- Returns a state where `itemName` can be inserted to. Returns 'nil' if none are available.
----@diagnostic disable-next-line: unused-local
-function AbstractCluster:inputState(item_name)
-	error('abstract method "inputState" not implemented')
-end
--- Returns a state from which `itemName` can be drawn from. Returns 'nil' if none are available.
----@diagnostic disable-next-line: unused-local
-function AbstractCluster:outputState(item_name)
-	error('abstract method "outputState" not implemented')
-end
+
 -- Adds a new inventory to the cluster. Data for the inventory may be build.
 ---@diagnostic disable-next-line: unused-local
 function AbstractCluster:registerInventory(inv_name)
 	error('abstract method "registerInventory" not implemented')
 end
+
 -- Removes an inventory from the cluster. Data from the inventory may be deleted.
 ---@diagnostic disable-next-line: unused-local
 function AbstractCluster:unregisterInventory(inv_name)
 	error('abstract method "unregisterInventory" not implemented')
 end
+
 -- Executes when an item is added to the cluster.
 ---@diagnostic disable-next-line: unused-local
-function AbstractCluster:_handleItemAdded(item_name, amount)
+function AbstractCluster:_itemAddedHandler(item_name, amount)
 	error('abstract method "_handleItemAdded" not implemented')
 end
+
 -- Executes when an item is removed from the cluster.
 ---@diagnostic disable-next-line: unused-local
-function AbstractCluster:_handleItemRemoved(item_name, amount)
+function AbstractCluster:_itemRemovedHandler(item_name, amount)
 	error('abstract method "_handleItemRemoved" not implemented')
 end
 
@@ -353,7 +329,10 @@ function AbstractCluster:hasInventory(inv_name)
 	return false
 end
 
--- Saves the cluster's data to its data path.
+AbstractCluster.pushItems = pushItems
+AbstractCluster.pullItems = pullItems
+AbstractCluster.transfer = transfer
+
 function AbstractCluster:save()
 	local data = self:saveData()
 	local path = self:dataPath()

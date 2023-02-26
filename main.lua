@@ -12,6 +12,7 @@ string.split = utils.string_split
 
 local transfer = require('logistics.storage.core').transfer
 local StandardCluster = require('logistics.storage.standard').StandardCluster
+local OrderedCluster = require('logistics.storage.ordered').OrderedCluster
 local BulkCluster = require('logistics.storage.bulk').BulkCluster
 local BarrelCluster = require('logistics.storage.barrel').BarrelCluster
 local CraftingCluster = require('logistics.storage.crafting').CraftingCluster
@@ -24,7 +25,7 @@ local CraftingPage = require('graphics.CraftingPage')
 local QueuePage = require('graphics.QueuePage')
 local InterfacePage = require('graphics.InterfacePage')
 
-local main_storage = StandardCluster:new{name = "main cluster"}
+local main_storage = OrderedCluster:new{name = "main cluster"}
 local io_storage = StandardCluster:new{name = "io cluster"}
 local bulk_storage = BulkCluster:new{name = "bulk cluster"}
 local barrel_storage = BarrelCluster:new{name = "barrel cluster"}
@@ -59,20 +60,18 @@ end
 local function storeAll()
 	local notStored = {}
 
-	io_storage:refresh()
-
-	-- TODO: Change this to use the new 'transfer'.
+	io_storage:catalog()
 	local moved
 	for _, inv in pairs(io_storage.invs) do
 		for _, item_state in pairs(inv.states) do
 			local item = item_state:item()
 			if item ~= nil then
-				if barrel_storage.invsItem[item.name] then
-					moved = transfer(io_storage, barrel_storage, io_storage, barrel_storage, item.name)
-				elseif bulk_storage.invsItem[item.name] then
-					moved = transfer(io_storage, bulk_storage, io_storage, bulk_storage, item.name)
+				if barrel_storage.invs_with_item[item.name] then
+					moved = transfer(io_storage, barrel_storage, item.name)
+				elseif bulk_storage.invs_with_item[item.name] then
+					moved = transfer(io_storage, bulk_storage, item.name)
 				else
-					moved = transfer(io_storage, main_storage, io_storage, main_storage, item.name)
+					moved = transfer(io_storage, main_storage, item.name)
 				end
 
 				if moved == 0 then
@@ -89,7 +88,6 @@ local function storeAll()
 	return true
 end
 
--- FIXME: I've deleted the bulk cluster file, and for some reason now the rest isn't working. Find out why.
 local function save_clusters()
 	for _,cluster in pairs(clusters) do
 		cluster:save()
@@ -253,7 +251,7 @@ queue:add{
 	name = 'Cleaning up crafting stations',
 	fn = function()
 		for _,storage_cluster in ipairs(storage_clusters) do
-			transfer(crafting_cluster, storage_cluster)
+			-- crafting_cluster:transfer(storage_cluster)
 		end
 	end
 }

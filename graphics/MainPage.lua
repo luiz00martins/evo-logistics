@@ -124,16 +124,15 @@ function MainPage:new(main, io_stor, crafting_cluster, storage_clusters, callbac
 					local retrieve_from_clusters = function()
 						for _, cluster in ipairs(storage_clusters) do
 							if amount > 0 and cluster:itemCount(item_name) and cluster:itemCount(item_name) > 0 then
-								local moved = transfer(cluster, io_stor, cluster, io_stor, item_name, amount)
+								local moved = transfer(cluster, io_stor, item_name, amount)
 								if moved == 0 then
 									io_stor:refresh()
-									moved = transfer(cluster, io_stor, cluster, io_stor, item_name, amount)
+									moved = transfer(cluster, io_stor, item_name, amount)
 								end
 
 								total_moved = total_moved + moved
 								if moved < amount then
-									-- TODO: Add warning message.
-									--devIO:stdout_write("WARNING: Haul not fully completed ("..moved.."/"..amount..")\n")
+									utils.log("WARNING: Haul not fully completed ("..moved.."/"..amount..")\n")
 								else
 									break
 								end

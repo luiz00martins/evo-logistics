@@ -32,6 +32,7 @@ function SearchableList:new(args)
 	newSearchableList.main_frame  = args.parent:addFrame(args.name or 'searchable_list')
 		:setPosition(2, 3)
 		:setSize(width-2, height-3)
+		:hide()
 
 	newSearchableList.search_bar = newSearchableList.main_frame:addInput('search_bar')
 		:setPosition(1, 1)

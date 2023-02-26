@@ -1,49 +1,69 @@
 ---@diagnostic disable: need-check-nil
 local utils = require('/logos.utils')
 local core = require('/logos.logistics.storage.core')
-local standard = require('/logos.logistics.storage.standard')
 
-local get_connected_inventories = utils.get_connected_inventories
 local table_reduce = utils.table_reduce
 local table_contains = utils.table_contains
 local array_map = utils.array_map
 local new_class = utils.new_class
 
-local StandardState = standard.StandardState
 local AbstractInventory = core.AbstractInventory
 local AbstractCluster = core.AbstractCluster
 
-local BarrelState = new_class(StandardState)
+local BARREL_COMPONENT_PRIORITY = 2
 
-function BarrelState:_moveItem(target_state, limit)
-	-- If the states are the same, there's no need to move an item.
-	if self == target_state then return 0 end
+local function _getPriority(_) return BARREL_COMPONENT_PRIORITY end
 
-	-- If no limit (or negative limit) was given, then we assume every item is to be moved.
-	if not limit or limit < 0 then
-		limit = self.itemCount()
+local _memoized_get_item_detail_data = {}
+local function memoized_get_item_detail(item_name, inv_name)
+	if _memoized_get_item_detail_data[item_name] then
+		return _memoized_get_item_detail_data[item_name]
 	end
 
-	return peripheral.call(self:invName(), 'pushItem', target_state:invName(), self:itemName(), limit)
+	local item_detail = peripheral.call(inv_name, 'items')[1]
+
+	-- We only save the consistent data.
+	_memoized_get_item_detail_data[item_name] = {
+		maxCount = item_detail.maxCount,
+		displayName = item_detail.displayName,
+	}
+
+	return _memoized_get_item_detail_data[item_name]
 end
 
--- NOTE: These handle the fact that update makes 'state.full = false'. Which means that the call for 'inputState()' inside 'transfer' will result in an infinite loop, because it checks for 'state.full'. If that check disappears, these can go.
-function BarrelState:_handleItemAdded(_, amount, _)
-	self._item.count = self._item.count + amount
+local function _barePushItems(_, output_components, input_components, limit)
+	local item_name = output_components.inventory:itemName()
 
-	if amount == 0 then
-		self.full = true
+	local origin = input_components.self
+	if origin.component_type == 'state' then
+		limit = origin:_inputLimit(item_name, memoized_get_item_detail(item_name, output_components.inventory.name).maxCount)
 	end
-end
 
-function BarrelState:_handleItemRemoved(_, amount, _)
-	self._item.count = self._item.count - amount
+	local moved = peripheral.call(output_components.inventory.name, 'pushItem', input_components.inventory.name, item_name, limit)
 
-	if amount ~= 0 then
-		self.full = false
+	if origin.component_type == 'state' and moved > 0 then
+		origin.parent:_relocatePushedItem(origin, item_name, moved)
 	end
+
+	return moved, item_name
 end
 
+local function _barePullItems(_, output_components, input_components, limit)
+	local item_name = input_components.inventory:itemName()
+
+	local origin = output_components.self
+	if origin.component_type == 'state' then
+		limit = origin:_outputLimit(item_name)
+	end
+
+	local moved = peripheral.call(input_components.inventory.name, 'pullItem', output_components.inventory.name, item_name, limit)
+
+	if origin.component_type == 'state' and moved > 0 then
+		origin.parent:_relocatePulledItem(origin, item_name, moved)
+	end
+
+	return moved, item_name
+end
 
 local BarrelInventory = new_class(AbstractInventory)
 
@@ -59,90 +79,102 @@ function BarrelInventory:new(args)
 		error('Inventory ' .. newBarrelInventory.name .. ' is not a valid barrel type.')
 	end
 
-	newBarrelInventory.state = BarrelState:new{
-		parent = newBarrelInventory,
-		slot = 1,
-		item = args.item or nil,
-		count = args.item and args.item.count or 0,
-		full = false,
-	}
+	newBarrelInventory.count = args.count or 0
+	newBarrelInventory.item_name = args.item_name or 'empty'
 
 	setmetatable(newBarrelInventory, BarrelInventory)
 
+	newBarrelInventory:refresh()
+
 	return newBarrelInventory
 end
+
+BarrelInventory._getPriority = _getPriority
+BarrelInventory._barePushItems = _barePushItems
+BarrelInventory._barePullItems = _barePullItems
 
 function BarrelInventory:catalog()
 	local items = peripheral.call(self.name, "items")
 
 	local _, item = next(items)
-	if item == nil then
-		self.item_name = 'empty'
-	else
-		self.item_name = item.name
-	end
+	self.item_name = item and item.name or 'empty'
 
 	local count = 0
 	for _, _item in pairs(items) do
 		count = count + _item.count
 	end
 
-	self.state = BarrelState:new{
-		parent = self,
-		slot = 1,
-		item = item,
-		count = count,
-		full = false,
-	}
+	self.count = count
+	self.full = false
 end
 
 function BarrelInventory:refresh()
 	local items = peripheral.call(self.name, "items")
 
 	local _, item = next(items)
-	if item == nil then
-		self.item_name = 'empty'
-	else
-		self.item_name = item.name
-	end
+	self.item_name = item and item.name or 'empty'
 
 	-- NOTE: We do not update the amount of items here, as we would need to recount them, which is expensive.
 end
 
-function BarrelInventory:inputState()
-	if self.state.full then
-		return nil
-	else
-		return self.state
-	end
-end
-
-function BarrelInventory:outputState()
-	if self.state:itemCount() == 0 then
-		return nil
-	else
-		return self.state
-	end
-end
-
 function BarrelInventory:hasItem()
-	return self.state:itemCount() > 0
+	return self:itemCount() > 0
 end
 
 function BarrelInventory:itemCount()
-	return self.state:itemCount()
+	return self.count
+end
+
+function BarrelInventory:itemName()
+	return self.item_name
 end
 
 BarrelInventory.itemIsAvailable = BarrelInventory.hasItem
 
-function BarrelInventory:_handleItemAdded(item_name, amount, previous_handlers)
+function BarrelInventory:_itemAddedHandler(item_name, amount)
+	self.count = self.count + amount
+
+	if amount == 0 then
+		self.full = true
+	end
+
+	if self.item_name == 'empty' then
+		self.item_name = item_name
+	end
 end
 
-function BarrelInventory:_handleItemRemoved(item_name, amount, previous_handlers)
+function BarrelInventory:_itemRemovedHandler(_, amount)
+	self.count = self.count - amount
+
+	self.full = false
+
+	if self.count == 0 then
+		self.item_name = 'empty'
+	end
 end
 
-function BarrelInventory:update()
-	-- pass
+function BarrelInventory:_getInputComponents(item_name)
+	if not self:hasItem() or ((item_name or self.item_name == item_name) and not self.full) then
+		return {
+			self = self,
+			inventory = self,
+			cluster = self.parent,
+		}
+	end
+
+	return nil
+end
+
+function BarrelInventory:_getOutputComponents(item_name)
+	if self:hasItem() and (not item_name or self.item_name == item_name) then
+		return {
+			self = self,
+			inventory = self,
+			cluster = self.parent,
+		}
+	end
+
+	return nil
 end
 
 function BarrelInventory:registerItem(item_name)
@@ -176,7 +208,12 @@ end
 
 -- Transfers every item to the target inventory, and returns the amount moved. It does not change the inventories internal models.
 function BarrelInventory:_bareTransferAll(target_inv)
-	local moved = peripheral.call(self.name, 'pushItem', target_inv.name)
+	local moved = 0
+	local just_moved = 1
+	while just_moved > 0 do
+		just_moved = peripheral.call(self.name, 'pushItem', target_inv.name)
+		moved = moved + just_moved
+	end
 
 	return moved
 end
@@ -189,24 +226,22 @@ function BarrelInventory:recount(empty_invs)
 	local moved = 0
 
 	-- Move all items to empty, counting the each transter in the process.
-	self:update()
 	for _,inv in pairs(empty_invs) do
-		local justMoved = self:_bareTransferAll(inv)
-		moved = moved + justMoved
+		local just_moved = self:_bareTransferAll(inv)
+		moved = moved + just_moved
 
-		if justMoved == 0 then
+		if just_moved == 0 then
 			break
 		end
 	end
-	self:update()
 
 	-- The inventory has to be empty for the count to be valid.
 	local emptied = (#peripheral.call(self.name, 'items') == 0)
 
 	-- Undo all moves.
 	for _,inv in pairs(empty_invs) do
-		local justMoved = inv:_bareTransferAll(self)
-		if justMoved == 0 then
+		local just_moved = inv:_bareTransferAll(self)
+		if just_moved == 0 then
 			break
 		end
 	end
@@ -215,7 +250,7 @@ function BarrelInventory:recount(empty_invs)
 		error("not enough empty space in bulk storage to count "..self.item_name)
 	end
 
-	self.state._item.count = moved - 1
+	self.count = moved - 1
 end
 
 
@@ -230,9 +265,9 @@ function BarrelCluster:new (args)
 	return newBarrelCluster
 end
 
--- Catalogs the cluster (initial setup).
-function BarrelCluster:catalog()
-end
+BarrelCluster._getPriority = _getPriority
+BarrelCluster._barePushItems = _barePushItems
+BarrelCluster._barePullItems = _barePullItems
 
 function BarrelCluster:setItemInventory(inv_name, item_name)
 	for _,inv in ipairs(self.invs) do
@@ -320,11 +355,18 @@ function BarrelCluster:unregisterInventory(inv_name)
 	end
 	table.remove(self.invs_with_item[inv.item_name], pos)
 
-	-- HACK: This is a hack to attend for the name bug inside ´BulkInv:new´.
+	-- HACK: This is a hack to attend for the name bug inside ´BulkInv:new´. You can probably fix this.
 	if inv.item_name == 'empty' or not self.item_count[inv.item_name] or self.item_count[inv.item_name] == 0 then
 		self.item_count['empty'] = self.item_count['empty'] - 1
 	else
 		self.item_count[inv.item_name] = self.item_count[inv.item_name] - inv.count
+	end
+end
+
+-- Catalogs the cluster (initial setup).
+function BarrelCluster:catalog()
+	for _,inv in ipairs(self.invs) do
+		inv:catalog()
 	end
 end
 
@@ -358,7 +400,6 @@ function BarrelCluster:loadData(data)
 	local inv_names = data.inv_names
 	local inv_items = data.inv_items
 	local inv_counts = data.inv_counts
-	local connected_inventories_names = get_connected_inventories()
 
 	self.item_count = {}
 	self.invs = {}
@@ -368,11 +409,12 @@ function BarrelCluster:loadData(data)
 		local item_name = inv_items[i]
 		local item_count = inv_counts[i]
 
-		if table_contains(connected_inventories_names, inv_name) then
+		if peripheral.isPresent(inv_name) then
 			local inv = BarrelInventory:new{
 				parent = self,
 				name = inv_name,
-				item = {name = item_name, count = item_count}
+				item_name = item_name,
+				count = item_count,
 			}
 
 			table.insert(self.invs, inv)
@@ -381,7 +423,7 @@ function BarrelCluster:loadData(data)
 			self.invs_with_item[item_name] = self.invs_with_item[item_name] or {}
 			table.insert(self.invs_with_item[item_name], inv)
 		else
-			-- Inventory not found.
+			utils.log("Inventory "..inv_name.." is no longer present")
 		end
 	end
 
@@ -450,7 +492,7 @@ function BarrelCluster:itemNames()
 	return item_names
 end
 
-function BarrelCluster:_handleItemAdded(item_name, count)
+function BarrelCluster:_itemAddedHandler(item_name, count)
 	if not self.invs_with_item[item_name] then
 		error("no item '"..item_name.." in "..self.name)
 	end
@@ -460,7 +502,7 @@ function BarrelCluster:_handleItemAdded(item_name, count)
 	return true
 end
 
-function BarrelCluster:_handleItemRemoved(item_name, count)
+function BarrelCluster:_itemRemovedHandler(item_name, count)
 	if not self.invs_with_item[item_name] then
 		error("no item '"..item_name.." in "..self.name)
 	end
@@ -468,55 +510,6 @@ function BarrelCluster:_handleItemRemoved(item_name, count)
 	self.item_count[item_name] = self.item_count[item_name] - count
 
 	return true
-end
--- Returns a state where `item_name` can be inserted to. Returns 'nil' if none are available.
-function BarrelCluster:inputState(item_name)
-	if not item_name or item_name == 'empty' then error('Item name required ("'..(item_name or 'nil')..'" provided)') end
-	if not self.invs_with_item[item_name] then
-		return nil
-	end
-
-	local state
-	for _, inv in pairs(self.invs_with_item[item_name]) do
-		state = inv:inputState()
-
-		if state then
-			return state
-		end
-	end
-
-	return nil
-end
--- Returns a state from which `item_name` can be drawn from. Returns 'nil' if none are available.
-function BarrelCluster:outputState(item_name)
-	-- NOTE: Yes, the worst case of this is O(n). However, the average case is O(1).
-	local function search_invs_item(invs_item)
-		for _, inv in pairs(invs_item) do
-			local state = inv:outputState()
-
-			if state then
-				return state
-			end
-		end
-
-		return nil
-	end
-
-	if not item_name then
-		for _, invs_item in pairs(self.invs_with_item) do
-			local state = search_invs_item(invs_item)
-			if state then return state end
-		end
-	else
-		if not self.invs_with_item[item_name] then
-			return nil
-		end
-
-		local state = search_invs_item(self.invs_with_item[item_name])
-		if state then return state end
-	end
-
-	return nil
 end
 
 function BarrelCluster:recountItem(item_name)
@@ -595,6 +588,65 @@ function BarrelCluster:recount()
 	end
 end
 
+function BarrelCluster:_getOutputComponents(item_name)
+	if not item_name then
+		-- Searching for a random item.
+		for _item_name,_ in pairs(self.invs_with_item) do
+			if _item_name ~= 'empty' then
+				item_name = _item_name
+				break
+			end
+		end
+	end
+
+	if not item_name then return nil end
+
+	local invs_with_item = self.invs_with_item[item_name]
+	if not invs_with_item then return nil end
+
+	local inv = invs_with_item[#invs_with_item]
+	if not inv then return nil end
+
+	if inv:itemCount(item_name) <= 0 then return nil end
+
+	return {
+		self = self,
+		inventory = inv,
+		cluster = self,
+	}
+end
+
+function BarrelCluster:_getInputComponents(item_name)
+	if item_name then
+		local invs_with_item = self.invs_with_item[item_name]
+		if not invs_with_item then return nil end
+
+		local inv = invs_with_item[#invs_with_item]
+		if not inv then return nil end
+
+		if inv.full then return nil end
+
+		return {
+			self = self,
+			inventory = inv,
+			cluster = self,
+		}
+	else
+		local invs_with_item = self.invs_with_item[item_name]
+		if not invs_with_item then return nil end
+
+		local inv = invs_with_item[#invs_with_item]
+		if not inv then return nil end
+
+		return {
+			inventory = inv,
+			cluster = self,
+		}
+	end
+end
+
+
 return {
+	BarrelInventory = BarrelInventory,
 	BarrelCluster = BarrelCluster,
 }

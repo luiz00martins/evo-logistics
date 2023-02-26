@@ -28,8 +28,6 @@ function SearchPicker:new(args)
 		local button = parent:addButton('button_'..index)
 			:setSize(width - 2, 1)
 			:setValue(button_data)
-			-- TEMP: See https://github.com/Pyroxenium/Basalt/issues/38. 
-			:setZIndex(1001)
 
 		button:onClick(function()
 			run_and_exit(button)
@@ -50,8 +48,6 @@ function SearchPicker:new(args)
 		:setPosition(1, 1)
 		:setSize(parent_width, 1)
 		:setDefaultText('Search Text')
-		-- TEMP: See https://github.com/Pyroxenium/Basalt/issues/38. 
-		:setZIndex(1001)
 
 	newSearchPicker.search_bar:onKey(function(_, _, key)
 		-- Enter

@@ -5,10 +5,24 @@ local core = require('/logos.logistics.storage.core')
 local reversed_ipairs = utils.reversed_ipairs
 local table_reduce = utils.table_reduce
 local new_class = utils.new_class
+local table_map = utils.table_map
+local table_filter = utils.table_filter
 
 local AbstractState = core.AbstractState
 local AbstractInventory = core.AbstractInventory
 local AbstractCluster = core.AbstractCluster
+
+local STANDARD_COMPONENT_PRIORITY = 1
+
+local function _getPriority(_) return STANDARD_COMPONENT_PRIORITY end
+
+local function _barePushItems(_, output_components, input_components, limit)
+	return peripheral.call(output_components.inventory.name, 'pushItems', input_components.inventory.name, output_components.state.slot, limit, input_components.state.slot), output_components.state:itemName()
+end
+
+local function _barePullItems(_, output_components, input_components, limit)
+	return peripheral.call(input_components.inventory.name, 'pullItems', output_components.inventory.name, output_components.state.slot, limit, input_components.state.slot), output_components.state:itemName()
+end
 
 local StandardState = new_class(AbstractState)
 
@@ -19,44 +33,67 @@ function StandardState:new (args)
 	if args.full == nil then args.full = false end
 
 	newStandardState.full = args.full
-	--newState.maxOutput = args.maxOutput or peripheral.call(newState:invName(), 'getItemLimit', args.slot)
 
 	setmetatable(newStandardState, self)
 	return newStandardState
 end
 
+StandardState._getPriority = _getPriority
+StandardState._barePushItems = _barePushItems
+StandardState._barePullItems = _barePullItems
+
+function StandardState:_getInputComponents(item_name)
+	if not self.full and (not item_name or self:itemName() == 'empty' or self:itemName() == item_name) then
+		return {
+			self = self,
+			state = self,
+			inventory = self.parent,
+			cluster = self.parent.parent,
+		}
+	end
+
+	return nil
+end
+
+function StandardState:_getOutputComponents(item_name)
+	if self:hasItem(item_name) then
+		return {
+			self = self,
+			state = self,
+			inventory = self.parent,
+			cluster = self.parent.parent,
+		}
+	end
+
+	return nil
+end
+
+function StandardState:_inputLimit(item_name, max_count)
+	if not self.full and (not item_name or self:itemName() == 'empty' or self:itemName() == item_name) then
+		return max_count - self:itemCount()
+	end
+
+	return 0
+end
+
+function StandardState:_outputLimit(item_name)
+	if self:hasItem(item_name) then
+		return self:itemCount()
+	end
+
+	return 0
+end
+
 StandardState.hasItemAvailable = StandardState.hasItem
 
 -- Gets the up to date data about the state's items.
-function StandardState:update()
+function StandardState:refresh()
 	self._item = peripheral.call(self:invName(), 'getItemDetail', self.slot)
 	self.full = false
 end
 
-function StandardState:_moveItem(target_state, limit)
-	local item = self:item()
-
-	-- If there`s no item to move, return 0.
-	if not item then return 0 end
-	-- If the states are the same, there's no need to move an item.
-	if self == target_state then return 0 end
-
-	-- If no limit (or negative limit) was given, then we assume every item is to be moved.
-	if not limit or limit < 0 then
-		limit = item.count
-	end
-
-	-- Moving item
-	local moved = peripheral.call(
-			self:invName(), 'pushItems',
-			target_state:invName(), self.slot, limit, target_state.slot
-		)
-
-	return moved
-end
-
 -- Adds `amount` of `itemName` to the slot.
-function StandardState:_handleItemAdded(item_name, amount, _)
+function StandardState:_itemAddedHandler(item_name, amount, _)
 	if amount == 0 then
 		self.full = true
 	end
@@ -70,12 +107,12 @@ function StandardState:_handleItemAdded(item_name, amount, _)
 		local item = self:item()
 		item.count = item.count + amount
 	else
-		error('Item being added ('..item_name..') differs from item in slot ('..self:itemName()..')')
+		error('Item being added ('..utils.tostring(item_name)..') differs from item in slot ('..self:itemName()..')')
 	end
 end
 
 -- Removes `amount` items from the slot.
-function StandardState:_handleItemRemoved(item_name, amount, _)
+function StandardState:_itemRemovedHandler(item_name, amount, _)
 	self.full = false
 
 	if self:itemName() == item_name then
@@ -86,35 +123,8 @@ function StandardState:_handleItemRemoved(item_name, amount, _)
 			self._item = nil
 		end
 	else
-		error('Item being removed ('..item_name..') differs from item in slot ('..self:itemName()..')')
+		error('Item being removed ('..utils.tostring(item_name)..') differs from item in slot ('..self:itemName()..')')
 	end
-end
-
-function StandardState:bareMoveItem(target_state, limit)
-	return peripheral.call(
-		self:invName(), "pushItems",
-		target_state:invName(), self.slot, limit, target_state.slot
-	)
-end
-
-function StandardState:moveItem(target_state, limit)
-	local super = getmetatable(StandardState)
-
-	-- If the slot is full, no item can be moved.
-	if target_state.full then return 0 end
-
-	local moved = super.moveItem(self, target_state, limit)
-
-	-- If some item was moved, then the state is not empty anymore.
-	if moved > 0 then
-		self.full = false
-	end
-	-- If not all items that could be moved were moved, the target state filled up.
-	if moved ~= limit and self:hasItem() then
-		target_state.full = true
-	end
-
-	return moved
 end
 
 --------------------------------
@@ -138,7 +148,11 @@ function StandardInventory:new(args)
 	return newStandardInventory
 end
 
-function StandardInventory:inputState(item_name, include_empty)
+StandardInventory._getPriority = _getPriority
+StandardInventory._barePushItems = _barePushItems
+StandardInventory._barePullItems = _barePullItems
+
+function StandardInventory:_inputState(item_name, include_empty)
 	if include_empty == nil then include_empty = true end
 
 	item_name = item_name or 'empty'
@@ -164,7 +178,7 @@ function StandardInventory:inputState(item_name, include_empty)
 	end
 end
 
-function StandardInventory:outputState(item_name)
+function StandardInventory:_outputState(item_name)
 	local item_states
 
 	if not item_name then
@@ -183,13 +197,38 @@ function StandardInventory:outputState(item_name)
 	end
 end
 
+function StandardInventory:_getInputComponents(item_name)
+	local state = self:_inputState(item_name, true)
+
+	if not state then return nil end
+
+	return {
+		self = self,
+		state = state,
+		inventory = self,
+		cluster = self.parent,
+	}
+end
+
+function StandardInventory:_getOutputComponents(item_name)
+	local state = self:_outputState(item_name)
+
+	if not state then return nil end
+
+	return {
+		self = self,
+		state = state,
+		inventory = self,
+		cluster = self.parent,
+	}
+end
 
 function StandardInventory:itemCount(item_name)
 	if not item_name then
 		return table_reduce(self.item_count, function(a,b) return a+b end) - (self.item_count['empty'] or 0)
+	else
+		return self.item_count[item_name] or 0
 	end
-
-	return self.item_count[item_name] or 0
 end
 
 StandardInventory.availableItemCount = StandardInventory.itemCount
@@ -254,7 +293,6 @@ function StandardInventory:_cleanUp()
 	end
 end
 
--- TODO: Is refresh really necessary? Paralellizing catalog should be more than enough. Perhaps you should remove this.
 function StandardInventory:refresh()
 	self:_cleanUp()
 	local items = peripheral.call(self.name, "list")
@@ -288,60 +326,160 @@ function StandardInventory:refresh()
 	self.item_states = item_states
 end
 
-function StandardInventory:_handleItemAdded(item_name, amount, previous_handlers)
+function StandardInventory:_getItemCountDifference(item_name)
+	local function item_name_filter(item)
+		return item.name == item_name
+	end
+
+	local old_items = table_filter(
+		table_map(self.states, function(state)
+			return state:item()
+		end),
+		item_name_filter)
+	local new_items = table_filter(peripheral.call(self.name, 'list'), item_name_filter)
+
+	local old_item_counts = table_map(old_items, function(item)
+		return item.count
+	end)
+	local new_item_counts = table_map(new_items, function(item)
+		return item.count
+	end)
+
+	return old_item_counts, new_item_counts
+end
+
+-- This method assumes that some items have been added to the inventory, but to the wrong slot. It does not assume which slot the items went into. It finds where the items added went, and moved them to the correct slot.
+-- It is used by the barrels, which cannot move to a specific slot.
+function StandardInventory:_relocatePushedItem(target_state, item_name, amount)
+	local old_item_counts, new_item_counts = self:_getItemCountDifference(item_name)
+
+	-- Figure out what changed.
+	local difference = {}
+	-- NOTE: No items will be missed, as the new item counts will always be greater than the old item counts.
+	for i, new_count in pairs(new_item_counts) do
+		local old_count = old_item_counts[i] or 0
+
+		local diff = new_count - old_count
+
+		if diff > 0 then
+			difference[i] = diff
+		end
+	end
+
+	-- Move the items to the correct slot.
+	local moved = 0
+	for i, diff in pairs(difference) do
+		local new_state = self.states[i]
+
+		moved = moved + peripheral.call(self.name, 'pushItems', self.name, new_state.slot, diff, target_state.slot)
+	end
+
+	if moved ~= amount then
+		error('Moved ' .. moved .. ' items, but expected to move ' .. amount .. ' items.')
+	end
+
+	return moved
+end
+
+-- This method assumes that some items have been removed from the inventory, from the wrong slot. It does not assume which slot the items were taken from. It finds where the items removed were taken from, and moves items from the specified slot into them.
+-- It is used by the barrels, which cannot remove from a specific slot.
+function StandardInventory:_relocatePulledItem(source_state, item_name, amount)
+	local old_item_counts, new_item_counts = self:_getItemCountDifference(item_name)
+
+	-- Figure out what changed.
+	local difference = {}
+	-- NOTE: No items will be missed, as the old item counts will always be greater than the new item counts.
+	for i, old_count in pairs(old_item_counts) do
+		local new_count = new_item_counts[i] or 0
+
+		local diff = old_count - new_count
+
+		if diff > 0 then
+			difference[i] = diff
+		end
+	end
+
+	-- Move the items to the correct slots.
+	local moved = 0
+	for i, diff in pairs(difference) do
+		local new_state = self.states[i]
+
+		moved = moved + peripheral.call(self.name, 'pushItems', self.name, source_state.slot, diff, new_state.slot)
+	end
+
+	if moved ~= amount then
+		error('Moved ' .. moved .. ' items, but expected to move ' .. amount .. ' items.')
+	end
+
+	return moved
+end
+
+function StandardInventory:_itemAddedHandler(item_name, amount, input_components)
 	if amount == 0 then return end
 
-	local state = previous_handlers[1]
+	local state = input_components.state
 
-	-- Updating item count.
-	self.item_count[item_name] = (self.item_count[item_name] or 0) + amount
+	-- NOTE: If the state is available (somtimes it isn't, for barrels for example), we update the inventory internal manually, as re-catalogging it is expensive...
+	if state then
+		-- Updating item count.
+		self.item_count[item_name] = (self.item_count[item_name] or 0) + amount
 
-	-- If the amount if items in the state == the amount moved, then it was previously empty.
-	if state:itemCount() == amount then
-		-- So, we gotta remove it from the 'empty' count and list.
-		self.item_count['empty'] = self.item_count['empty'] - 1
-		self.item_states['empty']:remove(state)
+		-- If the amount if items in the state == the amount moved, then it was previously empty.
+		if state:itemCount() == amount then
+			-- So, we gotta remove it from the 'empty' count and list.
+			self.item_count['empty'] = self.item_count['empty'] - 1
+			self.item_states['empty']:remove(state)
 
-		-- Make sure the 'empty' list is removed if there's no states anymore.
-		if self.item_states['empty'].length == 0 then
-			self.item_states['empty'] = nil
+			-- Make sure the 'empty' list is removed if there's no states anymore.
+			if self.item_states['empty'].length == 0 then
+				self.item_states['empty'] = nil
+			end
+
+			-- and add it to the item's list.
+			self.item_states[item_name] = self.item_states[item_name] or dl_list()
+			self.item_states[item_name]:push(state)
 		end
-
-		-- and add it to the item's list.
-		self.item_states[item_name] = self.item_states[item_name] or dl_list()
-		self.item_states[item_name]:push(state)
+	else
+		-- ...otherwise, we just re-catalog the inventory.
+		self:catalog()
 	end
 end
 
-function StandardInventory:_handleItemRemoved(item_name, amount, previous_handlers)
+function StandardInventory:_itemRemovedHandler(item_name, amount, output_components)
 	if amount == 0 then return end
 
-	-- Updating item count.
-	self.item_count[item_name] = self.item_count[item_name] - amount
+	local state = output_components.state
 
-	-- If there's no item left delete the counter for that item.
-	if self.item_count[item_name] == 0 then
-		self.item_count[item_name] = nil
-	end
+	-- NOTE: If the state is available (somtimes it isn't, for barrels for example), we update the inventory internal manually, as re-catalogging it is expensive...
+	if state then
+		-- Updating item count.
+		self.item_count[item_name] = self.item_count[item_name] - amount
 
-	local state = previous_handlers[1]
-
-	-- If all items were removed from the slot, we need add to the remove from the item's count/list, and add to the 'empty' item's count/list.
-	if not state:hasItem() then
-		-- Remove state from the item's list.
-		self.item_states[item_name]:remove(state)
-
-		-- Make sure the item list is removed if there's no states anymore.
-		if self.item_states[item_name].length == 0 then
-			self.item_states[item_name] = nil
+		-- If there's no item left delete the counter for that item.
+		if self.item_count[item_name] == 0 then
+			self.item_count[item_name] = nil
 		end
 
-		-- Add it to the 'empty' list.
-		self.item_states['empty'] = self.item_states['empty'] or dl_list()
-		self.item_states['empty']:unshift(state)
+		-- If all items were removed from the slot, we need add to the remove from the item's count/list, and add to the 'empty' item's count/list.
+		if not state:hasItem() then
+			-- Remove state from the item's list.
+			self.item_states[item_name]:remove(state)
 
-		-- Add to counter
-		self.item_count['empty'] = (self.item_count['empty'] or 0) + 1
+			-- Make sure the item list is removed if there's no states anymore.
+			if self.item_states[item_name].length == 0 then
+				self.item_states[item_name] = nil
+			end
+
+			-- Add it to the 'empty' list.
+			self.item_states['empty'] = self.item_states['empty'] or dl_list()
+			self.item_states['empty']:unshift(state)
+
+			-- Add to counter
+			self.item_count['empty'] = (self.item_count['empty'] or 0) + 1
+		end
+	else
+		-- If the state is not available, we re-catalog the inventory.
+		self:catalog()
 	end
 end
 
@@ -358,38 +496,35 @@ function StandardCluster:new(args)
 	return newStandardCluster
 end
 
--- TODO: CHANGE THIS
-function StandardCluster:inputState(item_name)
-	-- TODO: This for loop is O(n). Make this a linked list of inventories. Same as 'Inventory <-> States', make 'Cluster <-> Inventories'.
+StandardCluster._getPriority = _getPriority
+StandardCluster._barePushItems = _barePushItems
+StandardCluster._barePullItems = _barePullItems
+
+function StandardCluster:_getInputComponents(item_name)
+	if not self.invs then return nil end
+
 	for _,inv in reversed_ipairs(self.invs) do
-		if inv:hasItem(item_name) then
-			local input_state = inv:inputState(item_name, false)
+		local components = inv:_getInputComponents(item_name)
 
-			if input_state then
-				return input_state
-			else
-				break
-			end
-		end
-	end
-
-	for _,inv in ipairs(self.invs) do
-		local input_state = inv:inputState(item_name, true)
-
-		if input_state then
-			return input_state
+		if components then
+			components.self = self
+			return components
 		end
 	end
 
 	return nil
 end
 
--- TODO: CHANGE THIS
-function StandardCluster:outputState(item_name)
-	for _,inv in reversed_ipairs(self.invs) do
-		local output_state = inv:outputState(item_name)
+function StandardCluster:_getOutputComponents(item_name)
+	if not self.invs then return nil end
 
-		if output_state then return output_state end
+	for _,inv in reversed_ipairs(self.invs) do
+		local components = inv:_getOutputComponents(item_name)
+
+		if components then
+			components.self = self
+			return components
+		end
 	end
 
 	return nil
@@ -447,9 +582,15 @@ function StandardCluster:loadData(data)
 
 	if data.inv_names then
 		for _,inv_name in ipairs(data.inv_names) do
-			self:registerInventory{inv_name = inv_name}
+			if peripheral.isPresent(inv_name) then
+				self:registerInventory{inv_name = inv_name}
+			else
+				utils.log("Inventory "..inv_name.." is no longer present")
+			end
 		end
 	end
+
+	self:catalog()
 
 	return true
 end
@@ -460,7 +601,7 @@ end
 
 function StandardCluster:itemCount(item_name)
 	if not item_name then
-		return table_reduce(self.item_count, function(a,b) return a+b end) - (self.item_count['empty'] or 0)
+		return table_reduce(self.item_count, function(a,b) return a+b end, 0) - (self.item_count['empty'] or 0)
 	end
 
 	return self.item_count[item_name] or 0
@@ -488,14 +629,14 @@ function StandardCluster:itemNames()
 	return item_names
 end
 
-function StandardCluster:_handleItemAdded(item_name, amount, _)
+function StandardCluster:_itemAddedHandler(item_name, amount, _)
 	if amount == 0 then return true end
 
 	-- Updating item count.
 	self.item_count[item_name] = (self.item_count[item_name] or 0) + amount
 end
 
-function StandardCluster:_handleItemRemoved(item_name, amount, _)
+function StandardCluster:_itemRemovedHandler(item_name, amount, _)
 	if amount == 0 then return true end
 
 	self.item_count[item_name] = self.item_count[item_name] - amount
@@ -549,7 +690,6 @@ function StandardCluster:unregisterInventory(inv_name)
 	table.remove(self.invs, inv_pos)
 	self:_removeInventoryContribution(inv)
 end
-
 
 -- Returning classes.
 return {

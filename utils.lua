@@ -218,6 +218,24 @@ local function table_deepcopy(orig, copies)
     return copy
 end
 
+local function table_keys(t)
+		local keys = {}
+		for k, _ in pairs(t) do
+				table.insert(keys, k)
+		end
+
+		return keys
+end
+
+local function table_values(t)
+		local values = {}
+		for _, v in pairs(t) do
+				table.insert(values, v)
+		end
+
+		return values
+end
+
 local function array_contains(arr, val)
     for i, v in ipairs(arr) do
         if v == val then
@@ -277,11 +295,11 @@ local function table_serialize (tt, indent, done)
 end
 
 local function to_string( tbl )
-    if  "nil"       == type( tbl ) then
+    if nil == tbl then
         return 'nil'
-    elseif  "table" == type( tbl ) then
+    elseif "table" == type( tbl ) then
         return table_serialize(tbl)
-    elseif  "string" == type( tbl ) then
+    elseif "string" == type( tbl ) then
         return tbl
     else
         return tostring(tbl)
@@ -310,6 +328,31 @@ local function array_unique(arr)
 	end
 
 	return unique
+end
+
+local function table_partition(tab, pred)
+	local partitioned = {}
+
+	for _,v in pairs(tab) do
+		local result = pred(v)
+
+		if result then
+			partitioned[result] = partitioned[result] or {}
+			table.insert(partitioned[result], v)
+		end
+	end
+
+	return partitioned
+end
+
+local function array_partition(tab, pred)
+	local partitioned = {}
+
+	for _,v in pairs(table_partition(tab, pred)) do
+		table.insert(partitioned, v)
+	end
+
+	return partitioned
 end
 
 local function array_filter(tab, filter)
@@ -479,26 +522,36 @@ local function shorten_item_names(item_names)
 	return shortened_item_names
 end
 
-local function new_class(base)
-	local new_cls = {}
+local function new_class(...)
+    local new_cls = {}
 
-	new_cls.__index = new_cls
+    -- Add properties and methods from base classes
+		for i, base in ipairs({...}) do
+			for k, v in pairs(base) do
+				if k ~= "__index" then
+					new_cls[k] = v
+				end
+			end
+		end
 
-	if base then
-		setmetatable(new_cls, base)
-	end
+    -- Set metatable for new class
+    new_cls.__index = new_cls
 
-	return new_cls
+    return new_cls
 end
 
 -- Returning functions.
 return {
 	table_deepcopy = table_deepcopy,
 	table_shallowcopy = table_shallowcopy,
+	table_keys = table_keys,
+	table_values = table_values,
 	tostring = to_string,
 	array_contains = array_contains,
 	table_contains = table_contains,
 	array_unique = array_unique,
+	array_partition = array_partition,
+	table_partition = table_partition,
 	array_filter = array_filter,
 	table_filter = table_filter,
 	array_reduce = array_reduce,

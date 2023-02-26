@@ -115,8 +115,6 @@ function CraftingPage:_createNewProfileFrame()
 		inv_types_dropdown:addItem(inv_type)
 	end
 
-	-- FIXME: What... what is this even used for. I think nothing, this should be removed.
-	local size
 	inv_types_dropdown:onChange(function(dropdown)
 		local i = dropdown:getItemIndex()
 		local inv_type = inv_types[i]
@@ -360,7 +358,7 @@ function CraftingPage:_createNewRecipeFrame(profile_frame, profile)
 	end
 
 	local slots = {}
-	local search_picker = SearchPicker:new(new_recipe_frame)
+	local search_picker = SearchPicker:new{parent = new_recipe_frame}
 
 	local x1 = math.floor(width*(0/4))+1
 	local x2 = math.floor(width*(1/4))+1

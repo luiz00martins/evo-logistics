@@ -17,6 +17,10 @@ local new_class = utils.new_class
 local StandardCluster = standard.StandardCluster
 local transfer = core.transfer
 
+local CRAFTING_COMPONENT_PRIORITY = 1
+
+local function _getPriority(_) return CRAFTING_COMPONENT_PRIORITY end
+
 -- Crafting Profile Class
 
 local CraftingProfile = {}
@@ -121,6 +125,8 @@ function CraftingCluster:new(args)
 	return newCraftingCluster
 end
 
+CraftingCluster._getPriority = _getPriority
+
 function CraftingCluster:saveData()
 	local profiles = array_map(self.profiles, function(profile) return profile:serialize() end)
 
@@ -146,7 +152,11 @@ function CraftingCluster:loadData(data)
 	self.profiles	= profiles
 	self.invs	= {}
 	for _,inv_name in ipairs(data.inv_names) do
-		self:registerInventory{inv_name = inv_name}
+		if peripheral.isPresent(inv_name) then
+			self:registerInventory{inv_name = inv_name}
+		else
+			utils.log("Inventory "..inv_name.." is no longer present")
+		end
 	end
 
 	return true
@@ -373,7 +383,7 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 					if amount_pulled < amount_needed and cluster:itemIsAvailable(slot_data.item_name) then
 
 						local toState = inv.states[j]
-						amount_pulled = amount_pulled + transfer(cluster, toState, cluster, self, slot_data.item_name, amount_needed-amount_pulled)
+						amount_pulled = amount_pulled + transfer(cluster, toState, slot_data.item_name, amount_needed-amount_pulled)
 						--amount_pulled = amount_pulled + cluster:move(fromState, self, toState, amount_needed-amount_pulled)
 					end
 				end
@@ -391,8 +401,9 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 
 				-- Removing crafted items.
 				for _,cluster in ipairs(self.storage_clusters) do
+					-- FIXME: :inputState does not exist anymore.
 					if output_state:hasItem() and cluster:inputState(slot.item_name) then
-						transfer(output_state, cluster, self, cluster)
+						transfer(output_state, cluster)
 					end
 				end
 				if output_state:hasItem() then
