@@ -8,7 +8,9 @@ local array_unique = utils.array_unique
 local array_map = utils.array_map
 local table_map = utils.table_map
 local table_reduce = utils.table_reduce
+local table_values = utils.table_values
 local table_shallowcopy = utils.table_shallowcopy
+local table_contains = utils.table_contains
 local array_contains = utils.array_contains
 local array_filter = utils.array_filter
 local inventory_type = utils.inventory_type
@@ -20,6 +22,12 @@ local transfer = core.transfer
 local CRAFTING_COMPONENT_PRIORITY = 1
 
 local function _getPriority(_) return CRAFTING_COMPONENT_PRIORITY end
+
+local SLOT_TYPE = {
+	INPUT = 'input',
+	OUTPUT = 'output',
+	TEMPLATE = 'template',
+}
 
 -- Crafting Profile Class
 
@@ -93,7 +101,7 @@ function CraftingProfile:addRecipe(recipe)
 		if not slot_data.amount then error('not amount provided in crafting slot') end
 		if not slot_data.type then error('not type provided in crafting slot') end
 
-		if slot_data.type ~= 'input' and slot_data.type ~= 'output' then error('invalid crafting slot type provided ('..tostring(slot_data.type)..')') end
+		if not table_contains(table_values(SLOT_TYPE), slot_data.type) then error('invalid crafting slot type provided ('..tostring(slot_data.type)..')') end
 	end
 
 	self.recipes[#self.recipes+1] = recipe
@@ -165,7 +173,7 @@ end
 function CraftingCluster:_addProfileData(profile)
 	for _,recipe in ipairs(profile.recipes) do
 		for _,slot_data in pairs(recipe.slots) do
-			if slot_data.type == 'output' then
+			if slot_data.type == SLOT_TYPE.OUTPUT then
 				local item_name = slot_data.item_name
 				self.item_count[item_name] = 0
 
@@ -205,7 +213,7 @@ function CraftingCluster:itemNames()
 	for _,profile in ipairs(self.profiles) do
 		for _,recipe in ipairs(profile.recipes) do
 			for _,slot_data in pairs(recipe.slots) do
-				if slot_data.type == 'output' then
+				if slot_data.type == SLOT_TYPE.OUTPUT then
 					item_names[#item_names+1] = slot_data.item_name
 				end
 			end
@@ -252,10 +260,10 @@ function CraftingCluster:calculateMissingItems(item_name, amount, craft_list)
 	-- Getting how many items are needed for each crafing.
 	local inputs_needed = {}
 	for _,slot_data in pairs(recipe.slots) do
-		if slot_data.type == 'input' then
+		if slot_data.type == SLOT_TYPE.INPUT then
 			inputs_needed[slot_data.item_name] = (inputs_needed[slot_data.item_name] or 0) + slot_data.amount
 
-		elseif slot_data.item_name == item_name and slot_data.type == 'output' then
+		elseif slot_data.item_name == item_name and slot_data.type == SLOT_TYPE.OUTPUT then
 			output_crafted = output_crafted + slot_data.amount
 		end
 	end
@@ -307,10 +315,10 @@ function CraftingCluster:createCraftingTree(item_name, amount, craft_list)
 	-- Getting how many items are needed for each crafing.
 	local inputs_needed = {}
 	for _,slot_data in pairs(recipe.slots) do
-		if slot_data.type == 'input' then
+		if slot_data.type == SLOT_TYPE.INPUT then
 			inputs_needed[slot_data.item_name] = (inputs_needed[slot_data.item_name] or 0) + slot_data.amount
 
-		elseif slot_data.item_name == item_name and slot_data.type == 'output' then
+		elseif slot_data.item_name == item_name and slot_data.type == SLOT_TYPE.OUTPUT then
 			output_crafted = output_crafted + slot_data.amount
 		end
 	end
@@ -362,8 +370,8 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 		error('No inventories of type '..inv_type..' found')
 	end
 
-	local inputs = table_map(recipe.slots, function(slot) if slot.type == 'input' then return slot end end)
-	local outputs = table_map(recipe.slots, function(slot) if slot.type == 'output' then return slot end end)
+	local inputs = table_map(recipe.slots, function(slot) if slot.type == SLOT_TYPE.INPUT then return slot end end)
+	local outputs = table_map(recipe.slots, function(slot) if slot.type == SLOT_TYPE.OUTPUT then return slot end end)
 
 	-- TODO: Right now, you get all of the item outputs before putting a new one. If you put the input item before proceding to the next ones, you can accelerate things quite a bit.
 	-- Executing crafting recipe.

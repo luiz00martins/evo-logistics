@@ -358,7 +358,9 @@ function CraftingPage:_createNewRecipeFrame(profile_frame, profile)
 	end
 
 	local slots = {}
-	local search_picker = SearchPicker:new{parent = new_recipe_frame}
+	local search_picker = SearchPicker:new {
+		parent = new_recipe_frame,
+	}
 
 	local x1 = math.floor(width*(0/4))+1
 	local x2 = math.floor(width*(1/4))+1
@@ -401,7 +403,7 @@ function CraftingPage:_createNewRecipeFrame(profile_frame, profile)
 				end
 			end
 
-			search_picker:refresh()
+			search_picker:rebuild(item_names)
 			search_picker:show()
 			search_picker:setFocus()
 		end)

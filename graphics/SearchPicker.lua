@@ -3,6 +3,7 @@ local graphics_utils = require('graphics.utils')
 local SearchableList = require('graphics.SearchableList')
 
 local new_class = utils.new_class
+local array_filter = utils.array_filter
 local visual_button = graphics_utils.visual_button
 
 local SearchPicker = new_class(SearchableList)
@@ -13,16 +14,19 @@ function SearchPicker:new(args)
 	newSearchPicker.handler = args.handler
 
 	local function run_and_exit(button)
-		newSearchPicker.handler(button:getValue())
+		if button then
+			newSearchPicker.handler(button:getValue())
+		end
+
 		newSearchPicker.main_frame:hide()
 		newSearchPicker.search_bar:setValue('')
 	end
 
-	function newSearchPicker.searcher(_, query)
-		return string.find(newSearchPicker.search_bar:getValue(), query)
+	newSearchPicker.searcher = function(item_data, search)
+		return item_data:lower():find(search:lower())
 	end
 
-	function newSearchPicker.item_builder(parent, button_data, index)
+	function newSearchPicker.item_builder(parent, index, button_data)
 		local width, _ = parent:getSize()
 
 		local button = parent:addButton('button_'..index)
@@ -60,25 +64,25 @@ function SearchPicker:new(args)
 
 	return newSearchPicker
 end
---
---function SearchPicker:refresh()
+
+-- function SearchPicker:refresh()
 --  local options = self.options
 --  if type(options) == 'function' then
 --    options = options()
 --  end
 --
---  local text = self.input:getValue()
+--  local text = self.search_bar:getValue()
 --  local matching = array_filter(self.options, function(v) return v:find(text) end)
 --
---  for i=1,#self.buttons do
+--  for i=1,#self.items do
 --    local match = matching[i]
 --    if match then
---      self.buttons[i]:setValue(match)
+--      self.items[i]:setValue(match)
 --    else
---      self.buttons[i]:setValue('')
+--      self.items[i]:setValue('')
 --    end
 --  end
---end
+-- end
 
 function SearchPicker:show()
 	self.main_frame:show()

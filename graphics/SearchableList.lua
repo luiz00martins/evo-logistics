@@ -85,7 +85,7 @@ function SearchableList:refresh()
 	for i, item in ipairs(self.items) do
 		if self.searcher(self.data[i], self.search_bar:getValue()) then
 			table.insert(self.matching_items, i)
-			item:setPosition(0, (#self.matching_items + 1) * item_height)
+			item:setPosition(1, (#self.matching_items + 1) * item_height)
 			item:show()
 		else
 			item:hide()
