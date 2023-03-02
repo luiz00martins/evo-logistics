@@ -1,6 +1,6 @@
-local utils = require('/logos.utils')
-local dl_list = require('/logos.logistics.utils.dl_list')
-local core = require('/logos.logistics.storage.core')
+local utils = require('/logos-library.utils.utils')
+local dl_list = require('/logos-library.utils.dl_list')
+local core = require('/logos-library.core.core')
 
 local reversed_ipairs = utils.reversed_ipairs
 local table_reduce = utils.table_reduce

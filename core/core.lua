@@ -1,4 +1,4 @@
-local utils = require('/logos.utils')
+local utils = require('/logos-library.utils.utils')
 local new_class = utils.new_class
 
 local function _executeTransactionOperation(args)

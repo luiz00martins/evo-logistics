@@ -1,6 +1,6 @@
-local utils = require('/logos.utils')
-local core = require('/logos.logistics.storage.core')
-local standard = require('/logos.logistics.storage.standard')
+local utils = require('/logos-library.utils.utils')
+local core = require('/logos-library.core.core')
+local standard = require('/logos-library.core.standard')
 
 local get_order = utils.get_order
 local new_class = utils.new_class

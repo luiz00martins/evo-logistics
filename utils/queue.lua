@@ -1,4 +1,4 @@
-local dl_list = require('logistics.utils.dl_list')
+local dl_list = require('/logos-library.utils.dl_list')
 
 local queue = {
 	scheduled = dl_list(),

@@ -1,8 +1,8 @@
 ---@diagnostic disable: need-check-nil
-local utils = require('/logos.utils')
-local dl_list = require('/logos.logistics.utils.dl_list')
-local core = require('/logos.logistics.storage.core')
-local standard = require('/logos.logistics.storage.standard')
+local utils = require('/logos-library.utils.utils')
+local dl_list = require('/logos-library.utils.dl_list')
+local core = require('/logos-library.core.core')
+local standard = require('/logos-library.core.standard')
 
 local table_reduce = utils.table_reduce
 local array_map = utils.array_map
