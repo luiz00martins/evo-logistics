@@ -1,6 +1,6 @@
 ---@diagnostic disable: need-check-nil
 local utils = require('/logos-library.utils.utils')
-local core = require('/logos-library.core.core')
+local abstract = require('/logos-library.core.abstract')
 local standard = require('/logos-library.core.standard')
 
 local get_connected_inventories = utils.get_connected_inventories
@@ -17,7 +17,7 @@ local inventory_type = utils.inventory_type
 local new_class = utils.new_class
 
 local StandardCluster = standard.StandardCluster
-local transfer = core.transfer
+local transfer = abstract.transfer
 
 local CRAFTING_COMPONENT_PRIORITY = 1
 

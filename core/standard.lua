@@ -1,6 +1,6 @@
 local utils = require('/logos-library.utils.utils')
 local dl_list = require('/logos-library.utils.dl_list')
-local core = require('/logos-library.core.core')
+local abstract = require('/logos-library.core.abstract')
 
 local reversed_ipairs = utils.reversed_ipairs
 local table_reduce = utils.table_reduce
@@ -8,9 +8,9 @@ local new_class = utils.new_class
 local table_map = utils.table_map
 local table_filter = utils.table_filter
 
-local AbstractState = core.AbstractState
-local AbstractInventory = core.AbstractInventory
-local AbstractCluster = core.AbstractCluster
+local AbstractState = abstract.AbstractState
+local AbstractInventory = abstract.AbstractInventory
+local AbstractCluster = abstract.AbstractCluster
 
 local STANDARD_COMPONENT_PRIORITY = 1
 

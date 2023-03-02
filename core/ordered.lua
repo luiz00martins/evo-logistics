@@ -1,5 +1,5 @@
 local utils = require('/logos-library.utils.utils')
-local core = require('/logos-library.core.core')
+local abstract = require('/logos-library.core.abstract')
 local standard = require('/logos-library.core.standard')
 
 local get_order = utils.get_order
@@ -10,7 +10,7 @@ local reversed_ipairs = utils.reversed_ipairs
 local StandardState = standard.StandardState
 local StandardInventory = standard.StandardInventory
 local StandardCluster = standard.StandardCluster
-local transfer = core.transfer
+local transfer = abstract.transfer
 
 --------------------------------
 -- Ordered State Class.

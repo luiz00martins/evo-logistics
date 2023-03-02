@@ -1,14 +1,14 @@
 ---@diagnostic disable: need-check-nil
 local utils = require('/logos-library.utils.utils')
-local core = require('/logos-library.core.core')
+local abstract = require('/logos-library.core.abstract')
 
 local table_reduce = utils.table_reduce
 local table_contains = utils.table_contains
 local array_map = utils.array_map
 local new_class = utils.new_class
 
-local AbstractInventory = core.AbstractInventory
-local AbstractCluster = core.AbstractCluster
+local AbstractInventory = abstract.AbstractInventory
+local AbstractCluster = abstract.AbstractCluster
 
 local BARREL_COMPONENT_PRIORITY = 2
 

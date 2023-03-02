@@ -1,7 +1,7 @@
 ---@diagnostic disable: need-check-nil
 local utils = require('/logos-library.utils.utils')
 local dl_list = require('/logos-library.utils.dl_list')
-local core = require('/logos-library.core.core')
+local abstract = require('/logos-library.core.abstract')
 local standard = require('/logos-library.core.standard')
 
 local table_reduce = utils.table_reduce
@@ -9,8 +9,8 @@ local array_map = utils.array_map
 local new_class = utils.new_class
 
 local StandardState = standard.StandardState
-local AbstractInventory = core.AbstractInventory
-local AbstractCluster = core.AbstractCluster
+local AbstractInventory = abstract.AbstractInventory
+local AbstractCluster = abstract.AbstractCluster
 
 local BULK_COMPONENT_PRIOTITY = 1
 

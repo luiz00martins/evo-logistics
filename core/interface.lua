@@ -1,8 +1,8 @@
 local utils = require('/logos-library.utils.utils')
-local core = require('/logos-library.core.core')
+local abstract = require('/logos-library.core.abstract')
 local standard = require('/logos-library.core.standard')
 
-local transfer = core.transfer
+local transfer = abstract.transfer
 local new_class = utils.new_class
 local array_reduce = utils.array_reduce
 local array_map = utils.array_map
