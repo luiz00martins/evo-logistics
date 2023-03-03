@@ -390,9 +390,9 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 				for _,cluster in ipairs(self.storage_clusters) do
 					if amount_pulled < amount_needed and cluster:itemIsAvailable(slot_data.item_name) then
 
-						local toState = inv.states[j]
-						amount_pulled = amount_pulled + transfer(cluster, toState, slot_data.item_name, amount_needed-amount_pulled)
-						--amount_pulled = amount_pulled + cluster:move(fromState, self, toState, amount_needed-amount_pulled)
+						local toSlot = inv.slots[j]
+						amount_pulled = amount_pulled + transfer(cluster, toSlot, slot_data.item_name, amount_needed-amount_pulled)
+						--amount_pulled = amount_pulled + cluster:move(fromSlot, self, toSlot, amount_needed-amount_pulled)
 					end
 				end
 			end
@@ -403,28 +403,28 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 			local inv = invs[i]
 
 			for j,slot in pairs(outputs) do
-				local output_state = inv.states[j]
+				local output_slot = inv.slots[j]
 				-- Waiting for crafting.
-				self:waitCrafting(inv, output_state, slot.item_name, slot.amount)
+				self:waitCrafting(inv, output_slot, slot.item_name, slot.amount)
 
 				-- Removing crafted items.
 				for _,cluster in ipairs(self.storage_clusters) do
-					-- FIXME: :inputState does not exist anymore.
-					if output_state:hasItem() and cluster:inputState(slot.item_name) then
-						transfer(output_state, cluster)
+					-- FIXME: :inputSlot does not exist anymore.
+					if output_slot:hasItem() and cluster:inputSlot(slot.item_name) then
+						transfer(output_slot, cluster)
 					end
 				end
-				if output_state:hasItem() then
-					error('Could not export item '..output_state:itemName())
+				if output_slot:hasItem() then
+					error('Could not export item '..output_slot:itemName())
 				end
 			end
 		end
 	end
 end
 
-function CraftingCluster:waitCrafting(inv, to_state, item_name, amount)
-	-- TODO: Implement 'AbstractState:itemCount(item_name)' (with the 'item_name' argument).
-	while to_state:itemCount() < amount do
+function CraftingCluster:waitCrafting(inv, to_slot, item_name, amount)
+	-- TODO: Implement 'AbstractSlot:itemCount(item_name)' (with the 'item_name' argument).
+	while to_slot:itemCount() < amount do
 		inv:refresh()
 		os.sleep(0)
 	end

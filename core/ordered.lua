@@ -7,37 +7,37 @@ local new_class = utils.new_class
 local table_filter = utils.table_filter
 local reversed_ipairs = utils.reversed_ipairs
 
-local StandardState = standard.StandardState
+local StandardSlot = standard.StandardSlot
 local StandardInventory = standard.StandardInventory
 local StandardCluster = standard.StandardCluster
 local transfer = abstract.transfer
 
 --------------------------------
--- Ordered State Class.
+-- Ordered Slot Class.
 
-local OrderedState = new_class(StandardState)
+local OrderedSlot = new_class(StandardSlot)
 
-function OrderedState:new(args)
-	local newOrderedState = StandardState:new(args)
+function OrderedSlot:new(args)
+	local newOrderedSlot = StandardSlot:new(args)
 
-	setmetatable(newOrderedState, OrderedState)
-	return newOrderedState
+	setmetatable(newOrderedSlot, OrderedSlot)
+	return newOrderedSlot
 end
 
-function OrderedState:invPos()
+function OrderedSlot:invPos()
 	return self.parent.pos
 end
 
-function OrderedState:isBefore(other)
-    return (self:invPos() < other:invPos() or (self:invPos() == other:invPos() and self.slot < other.slot))
+function OrderedSlot:isBefore(other)
+    return (self:invPos() < other:invPos() or (self:invPos() == other:invPos() and self.index < other.index))
 end
 
-function OrderedState:isAfter(other)
-    return (self:invPos() > other:invPos() or (self:invPos() == other:invPos() and self.slot > other.slot))
+function OrderedSlot:isAfter(other)
+    return (self:invPos() > other:invPos() or (self:invPos() == other:invPos() and self.index > other.index))
 end
 
-function OrderedState:isAt(other)
-    return (self:invPos() == other:invPos() and self.slot == other.slot)
+function OrderedSlot:isAt(other)
+    return (self:invPos() == other:invPos() and self.index == other.index)
 end
 
 --------------------------------
@@ -63,25 +63,25 @@ end
 
 function OrderedInventory:_repopulate()
 	local items = peripheral.call(self.name, "list")
-	local states = {}
+	local slots = {}
 
-	for slot=1,self.size do
-		local state = OrderedState:new{
+	for index=1,self.size do
+		local slot = OrderedSlot:new{
 			parent = self,
-			slot = slot,
-			_item = items[slot],
+			index = index,
+			_item = items[index],
 		}
 
-		states[#states+1] = state
+		slots[#slots+1] = slot
 	end
 
-	self.states = states
+	self.slots = slots
 end
 
-function OrderedInventory:_swap(state0, state1, empty_state)
-	transfer(state0, empty_state)
-	transfer(state1, state0)
-	transfer(empty_state, state1)
+function OrderedInventory:_swap(slot0, slot1, empty_slot)
+	transfer(slot0, empty_slot)
+	transfer(slot1, slot0)
+	transfer(empty_slot, slot1)
 end
 
 function OrderedInventory:sort()
@@ -92,37 +92,37 @@ function OrderedInventory:sort()
 	local pos = 1
 	local cmp = function(a, b) return a > b end
 
-	local function get_empty_state()
-		for _,state in reversed_ipairs(self.states) do
-			if not state:hasItem() then
-				return state
+	local function get_empty_slot()
+		for _,slot in reversed_ipairs(self.slots) do
+			if not slot:hasItem() then
+				return slot
 			end
 		end
 	end
 
-	local empty_state = get_empty_state()
+	local empty_slot = get_empty_slot()
 	for _,item_name in ipairs(get_order(self.item_count, cmp)) do
 		if item_name ~= 'empty' then
-			-- local item_states = table_filter(self.states,
-			-- 	function(state)
-			-- 		return state:itemName() == item_name
+			-- local item_slots = table_filter(self.slots,
+			-- 	function(slot)
+			-- 		return slot:itemName() == item_name
 			-- 	end)
-			local item_states = {}
-			for _,state in ipairs(self.states) do
-				if state:itemName() == item_name then
-					item_states[#item_states+1] = state
+			local item_slots = {}
+			for _,slot in ipairs(self.slots) do
+				if slot:itemName() == item_name then
+					item_slots[#item_slots+1] = slot
 				end
 			end
-			-- print(#item_states)
+			-- print(#item_slots)
 
-			-- print(utils.tostring(#self.states)..' '..utils.tostring(#item_states)..' '..utils.tostring(self.item_count[item_name]))
-			for _,state in ipairs(item_states) do
-				if state:isAfter(self.states[pos]) then
-					self:_swap(state, self.states[pos], empty_state)
+			-- print(utils.tostring(#self.slots)..' '..utils.tostring(#item_slots)..' '..utils.tostring(self.item_count[item_name]))
+			for _,slot in ipairs(item_slots) do
+				if slot:isAfter(self.slots[pos]) then
+					self:_swap(slot, self.slots[pos], empty_slot)
 				end
 
-				if empty_state:hasItem() then
-					empty_state = get_empty_state()
+				if empty_slot:hasItem() then
+					empty_slot = get_empty_slot()
 				end
 
 				pos = pos + 1
@@ -174,30 +174,30 @@ function OrderedCluster:unregisterInventory(inv_name)
 	self:_removeInventoryContribution(inv)
 end
 
--- Swaps the item in `fromState` with the item in `toState`.
+-- Swaps the item in `from_slot` with the item in `to_slot`.
 
-function OrderedCluster:_swap(from_state, to_cluster, to_state)
-	if from_state == to_state then
+function OrderedCluster:_swap(from_slot, to_cluster, to_slot)
+	if from_slot == to_slot then
 		return
-	elseif not from_state:hasItem() then
-		--toCluster:move(toState, self, fromState)
-		transfer(to_state, from_state)
-	elseif not to_state:hasItem() then
-		--self:move(fromState, toCluster, toState)
-		transfer(from_state, to_state)
+	elseif not from_slot:hasItem() then
+		--toCluster:move(toSlot, self, fromSlot)
+		transfer(to_slot, from_slot)
+	elseif not to_slot:hasItem() then
+		--self:move(fromSlot, toCluster, toSlot)
+		transfer(from_slot, to_slot)
 	else
-		local swapState = self:_getInputComponents('empty').state
+		local swapSlot = self:_getInputComponents('empty').slot
 
-		if not swapState then
+		if not swapSlot then
 			error("no empty space for swap")
 		end
 
-		--self:move(fromState, self, swapState)
-		transfer(from_state, swapState)
-		--toCluster:move(toState, self, fromState)
-		transfer(to_state, from_state)
-		--self:move(swapState, toCluster, toState)
-		transfer(swapState, to_state)
+		--self:move(fromSlot, self, swapSlot)
+		transfer(from_slot, swapSlot)
+		--toCluster:move(toSlot, self, fromSlot)
+		transfer(to_slot, from_slot)
+		--self:move(swapSlot, toCluster, toSlot)
+		transfer(swapSlot, to_slot)
 	end
 end
 
@@ -207,30 +207,30 @@ function OrderedCluster:sort()
 		error("there's no space for swapping")
 	end
 
-	-- Current position on the states list.
+	-- Current position on the slots list.
 	local pos = 1
 	local cmp = function(a, b) return a > b end
 
 	for _,itemName in ipairs(get_order(self.item_count, cmp)) do
 		if itemName ~= 'empty' then
-			local all_states = {}
-			local item_states = {}
+			local all_slots = {}
+			local item_slots = {}
 
 			for _,inv in ipairs(self.invs) do
-				for _,state in ipairs(inv.states) do
-					all_states[#all_states+1] = state
+				for _,slot in ipairs(inv.slots) do
+					all_slots[#all_slots+1] = slot
 				end
 
-				if inv.item_states[itemName] then
-					for state in inv.item_states[itemName]:iterate() do
-						item_states[#item_states+1] = state
+				if inv.item_slots[itemName] then
+					for slot in inv.item_slots[itemName]:iterate() do
+						item_slots[#item_slots+1] = slot
 					end
 				end
 			end
 
-			for _,state in ipairs(item_states) do
-				if state:isAfter(all_states[pos]) then
-					self:_swap(state, self, all_states[pos])
+			for _,slot in ipairs(item_slots) do
+				if slot:isAfter(all_slots[pos]) then
+					self:_swap(slot, self, all_slots[pos])
 				end
 
 				pos = pos + 1
@@ -245,26 +245,26 @@ function OrderedCluster:packItem(item_name)
 	end
 
 	-- NOTE: We create a new list for it, because all the moving and swapping will change the properties of the inventorie's inner list mid-execution. The following list on the other hand, will be stable till the end of execution.
-	local item_states = {}
+	local item_slots = {}
 	for _, inv in ipairs(self.invs) do
 		if inv:hasItem(item_name) then
-			for state in inv.item_states[item_name]:iterate() do
-				item_states[#item_states+1] = state
+			for slot in inv.item_slots[item_name]:iterate() do
+				item_slots[#item_slots+1] = slot
 			end
 		end
 	end
 
 	local head = 1
-	local tail = #item_states
+	local tail = #item_slots
 
 	while head ~= tail do
-		--local moved = self:move(item_states[tail], self, item_states[head])
-		local moved = transfer(item_states[tail], item_states[head])
+		--local moved = self:move(item_slots[tail], self, item_slots[head])
+		local moved = transfer(item_slots[tail], item_slots[head])
 
 		if moved == 0 then
 			head = head + 1
 		else
-			if not item_states[tail]:hasItem() then
+			if not item_slots[tail]:hasItem() then
 				tail = tail - 1
 			end
 		end
@@ -280,7 +280,7 @@ function OrderedCluster:pack()
 end
 
 return {
-	OrderedState = OrderedState,
+	OrderedSlot = OrderedSlot,
 	OrderedInventory = OrderedInventory,
 	OrderedCluster = OrderedCluster,
 }

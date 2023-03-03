@@ -67,11 +67,11 @@ local function _executeTransactionOperation(args)
 		end
 
 		-- NOTE: We do this because the components table contains a 'self' component, which is repeated. If we don't strip it, we will run the handler twice.
-		for _,component in pairs{state = output_components.state, inventory = output_components.inventory, cluster = output_components.cluster} do
+		for _,component in pairs{slot = output_components.slot, inventory = output_components.inventory, cluster = output_components.cluster} do
 			component:_itemRemovedHandler(item_moved, just_moved, output_components)
 		end
 
-		for _,component in pairs{state = input_components.state, inventory = input_components.inventory, cluster = input_components.cluster} do
+		for _,component in pairs{slot = input_components.slot, inventory = input_components.inventory, cluster = input_components.cluster} do
 			component:_itemAddedHandler(item_moved, just_moved, input_components)
 		end
 	end
@@ -117,35 +117,35 @@ local function transfer(output, input, item_name, limit)
 end
 
 --------------------------------
--- Inventory slot state.
+-- Inventory slot.
 
-local AbstractState = new_class()
+local AbstractSlot = new_class()
 
-function AbstractState:new(args)
+function AbstractSlot:new(args)
 	-- These arguments must be passed.
-	if args.slot == nil then error('parameter missing `slot`') end
+	if args.index == nil then error('parameter missing `index`') end
 	if args.parent == nil then error('parameter missing `parent`') end
 
-	local newState =  {
+	local newSlot =  {
 		parent = args.parent,
 		_item = args.item,
-		slot = args.slot,
-		component_type = 'state',
+		index = args.index,
+		component_type = 'slot',
 	}
 
-	setmetatable(newState, self)
-	return newState
+	setmetatable(newSlot, self)
+	return newSlot
 end
 
-function AbstractState:invName()
+function AbstractSlot:invName()
 	return self.parent.name
 end
 
-function AbstractState:item()
+function AbstractSlot:item()
 	return self._item
 end
 
-function AbstractState:itemName()
+function AbstractSlot:itemName()
 	local item = self:item()
 	if item then
 		return item.name
@@ -154,7 +154,7 @@ function AbstractState:itemName()
 	end
 end
 
-function AbstractState:itemCount()
+function AbstractSlot:itemCount()
 	local item = self:item()
 	if item then
 		return item.count
@@ -163,35 +163,35 @@ function AbstractState:itemCount()
 	end
 end
 
--- Returns whether the state has the item `item_name` (may be `nil` for any item).
-function AbstractState:hasItem(item_name)
+-- Returns whether the slot has the item `item_name` (may be `nil` for any item).
+function AbstractSlot:hasItem(item_name)
 	if item_name then return self:itemName() == item_name end
 
 	return self._item ~= nil
 end
 
--- Returns whether `item_name` is available (for output) in the state. `item_name` may be `nil` for any item.
-AbstractState.itemIsAvailable = AbstractState.hasItem
+-- Returns whether `item_name` is available (for output) in the slot. `item_name` may be `nil` for any item.
+AbstractSlot.itemIsAvailable = AbstractSlot.hasItem
 
 ---@diagnostic disable-next-line: unused-local
-function AbstractState:_moveItem(target_state, limit)
+function AbstractSlot:_moveItem(target_slot, limit)
 	error('abstract method "_moveItem" not implemented')
 end
 
--- Executes when an item is removed to the state.
+-- Executes when an item is removed to the slot.
 ---@diagnostic disable-next-line: unused-local
-function AbstractState:_handleItemAdded(item_name, amount, previous_handlers)
+function AbstractSlot:_handleItemAdded(item_name, amount, previous_handlers)
 	error('abstract method "_handleItemAdded" not implemented')
 end
 
--- Executes when an item is added to the state.
+-- Executes when an item is added to the slot.
 ---@diagnostic disable-next-line: unused-local
-function AbstractState:_handleItemRemoved(item_name, amount, previous_handlers)
+function AbstractSlot:_handleItemRemoved(item_name, amount, previous_handlers)
 	error('abstract method "_handleItemRemoved" not implemented')
 end
 
-AbstractState.pushItems = pushItems
-AbstractState.pullItems = pullItems
+AbstractSlot.pushItems = pushItems
+AbstractSlot.pullItems = pullItems
 
 local AbstractInventory = new_class()
 function AbstractInventory:new(args)
@@ -209,7 +209,7 @@ function AbstractInventory:new(args)
 		name = args.name,
 		parent = args.parent,
 		size = size,
-		states = {},
+		slots = {},
 		component_type = 'inventory',
 	}
 
@@ -360,7 +360,7 @@ end
 
 -- Returning classes.
 return {
-	AbstractState = AbstractState,
+	AbstractSlot = AbstractSlot,
 	AbstractInventory = AbstractInventory,
 	AbstractCluster = AbstractCluster,
 	transfer = transfer,

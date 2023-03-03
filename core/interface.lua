@@ -43,14 +43,14 @@ function InterfaceInventory:registerConfig(config)
 
 	local config_type = config.type
 	config.type = nil
-	local config_slot = config.slot
-	config.slot = nil
+	local config_slot = config.index
+	config.index = nil
 
 	local config_list = self.config_types[config_type] or error('No configuration of type '..config_type)
 
 	if not config_slot then
-		for slot=1,self.size do
-			config_list[slot] = config
+		for index=1,self.size do
+			config_list[index] = config
 		end
 	else
 		config_list[config_slot] = config
@@ -58,8 +58,8 @@ function InterfaceInventory:registerConfig(config)
 end
 
 function InterfaceInventory:_executeActiveImports()
-	for slot,config in pairs(self.config_types.active_import) do
-		local state = self.states[slot]
+	for index,config in pairs(self.config_types.active_import) do
+		local slot = self.slots[index]
 
 		local item_name = config.item_name
 		local amount = config.count
@@ -67,7 +67,7 @@ function InterfaceInventory:_executeActiveImports()
 		local amount_moved = 0
 		for _,storage_cluster in ipairs(self.storage_clusters) do
 			repeat
-				local just_moved = transfer(storage_cluster, state, nil, nil, item_name, amount - amount_moved)
+				local just_moved = transfer(storage_cluster, slot, nil, nil, item_name, amount - amount_moved)
 				amount_moved = amount_moved + just_moved
 			until not storage_cluster:hasItem(item_name) or just_moved == 0 or amount == amount_moved
 
@@ -78,13 +78,13 @@ function InterfaceInventory:_executeActiveImports()
 	end
 end
 
-function InterfaceInventory:outputState(item_name)
+function InterfaceInventory:outputSlot(item_name)
 	-- FIXME: That's pretty efficient, ain't it?
 	self:refresh()
-	for slot,config in pairs(self.config_types.passive_export) do
-		local state = self.states[slot]
-		if (not config.item_name or not item_name or config.item_name == item_name) and state:hasItem(item_name) then
-			return state
+	for index,config in pairs(self.config_types.passive_export) do
+		local slot = self.slots[index]
+		if (not config.item_name or not item_name or config.item_name == item_name) and slot:hasItem(item_name) then
+			return slot
 		end
 	end
 
@@ -93,10 +93,10 @@ end
 
 function InterfaceInventory:availableItemCount(item_name)
 	local item_count = 0
-	for slot,config in pairs(self.config_types.passive_export) do
-		local state = self.states[slot]
-		if (not config.item_name or not item_name or config.item_name == item_name) and state:hasItem(item_name) then
-			item_count = item_count + state:itemCount(item_name)
+	for index,config in pairs(self.config_types.passive_export) do
+		local slot = self.slots[index]
+		if (not config.item_name or not item_name or config.item_name == item_name) and slot:hasItem(item_name) then
+			item_count = item_count + slot:itemCount(item_name)
 		end
 	end
 
@@ -104,7 +104,7 @@ function InterfaceInventory:availableItemCount(item_name)
 end
 
 function InterfaceInventory:hasItem(item_name)
-	return self:outputState(item_name) ~= nil
+	return self:outputSlot(item_name) ~= nil
 end
 
 InterfaceInventory.itemIsAvailable = InterfaceInventory.hasItem
@@ -177,7 +177,7 @@ function InterfaceCluster:_executeActiveImports()
 
 	end
 
-	local function active_import(slot, item_name, amount)
+	local function active_import(index, item_name, amount)
 		if not self:itemExists(item_name) then
 			error('Item '..item_name..' does not exist in cluster '..self.name)
 		end

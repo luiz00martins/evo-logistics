@@ -8,7 +8,7 @@ local table_reduce = utils.table_reduce
 local array_map = utils.array_map
 local new_class = utils.new_class
 
-local StandardState = standard.StandardState
+local StandardSlot = standard.StandardSlot
 local AbstractInventory = abstract.AbstractInventory
 local AbstractCluster = abstract.AbstractCluster
 
@@ -17,34 +17,34 @@ local BULK_COMPONENT_PRIOTITY = 1
 local function _getPriority() return BULK_COMPONENT_PRIOTITY end
 
 local function _barePushItems(_, output_components, input_components, limit)
-	return peripheral.call(output_components.inventory.name, 'pushItems', input_components.inventory.name, output_components.state.slot, limit, input_components.state.slot), output_components.state:itemName()
+	return peripheral.call(output_components.inventory.name, 'pushItems', input_components.inventory.name, output_components.slot.index, limit, input_components.slot.index), output_components.slot:itemName()
 end
 
 local function _barePullItems(_, output_components, input_components, limit)
-	return peripheral.call(input_components.inventory.name, 'pullItems', output_components.inventory.name, output_components.state.slot, limit, input_components.state.slot), output_components.state:itemName()
+	return peripheral.call(input_components.inventory.name, 'pullItems', output_components.inventory.name, output_components.slot.index, limit, input_components.slot.index), output_components.slot:itemName()
 end
 
 
-local BulkState = new_class(StandardState)
+local BulkSlot = new_class(StandardSlot)
 
-function BulkState:_itemAddedHandler(_, amount, _)
+function BulkSlot:_itemAddedHandler(_, amount, _)
 	self:refresh()
 	if amount == 0 then
 		self.full = true
 	end
 end
 
-BulkState._getPriority = _getPriority
+BulkSlot._getPriority = _getPriority
 
-function BulkState:_itemRemovedHandler(_, _, _)
+function BulkSlot:_itemRemovedHandler(_, _, _)
 	self:refresh()
 end
 
-function BulkState:_getOutputComponents(item_name)
+function BulkSlot:_getOutputComponents(item_name)
 	if self:hasItem(item_name) then
 		return {
 			self = self,
-			state = self,
+			slot = self,
 			inventory = self.parent,
 			cluster = self.parent.parent,
 		}
@@ -53,11 +53,11 @@ function BulkState:_getOutputComponents(item_name)
 	end
 end
 
-function BulkState:_getInputComponents(item_name)
+function BulkSlot:_getInputComponents(item_name)
 	if self:itemName() == 'empty' or (self:hasItem(item_name) and not self.full) then
 		return {
 			self = self,
-			state = self,
+			slot = self,
 			inventory = self.parent,
 			cluster = self.parent.parent,
 		}
@@ -94,15 +94,15 @@ function BulkInv:new(args)
 		newBulkInv.count = 0
 		local items = peripheral.call(newBulkInv.name, "list")
 
-		newBulkInv.in_state = BulkState:new{
+		newBulkInv.in_slot = BulkSlot:new{
 			parent = newBulkInv,
-			slot = 1,
+			index = 1,
 			item = items[1],
 			full = false,
 		}
-		newBulkInv.out_state = BulkState:new{
+		newBulkInv.out_slot = BulkSlot:new{
 			parent = newBulkInv,
-			slot = 2,
+			index = 2,
 			item = items[2],
 			full = false,
 		}
@@ -125,25 +125,25 @@ function BulkInv.NORMAL:catalog()
 	end
 
 	self.count = 0
-	self.item_states = dl_list()
-	self.empty_states = dl_list()
+	self.item_slots = dl_list()
+	self.empty_slots = dl_list()
 
-	-- Building list of item states.
-	local state
-	for slot=1,self.size do
-		state = BulkState:new{
+	-- Building list of item slots.
+	local slot
+	for index=1,self.size do
+		slot = BulkSlot:new{
 			parent = self,
-			slot = slot,
-			item = items[slot],
+			index = index,
+			item = items[index],
 			full = false,
 		}
-		local item_name = state:itemName()
+		local item_name = slot:itemName()
 
 		if item_name == 'empty' then
-			self.empty_states:push(state)
+			self.empty_slots:push(slot)
 		elseif item_name == self.item_name then
-			self.item_states:push(state)
-			self.count = self.count + state:itemCount()
+			self.item_slots:push(slot)
+			self.count = self.count + slot:itemCount()
 		else
 			error("bulk inventory "..self.name.." contains two different items("..self.item_name.." and "..item_name..")")
 		end
@@ -154,17 +154,17 @@ function BulkInv.IO_SLOTS:catalog()
 	self:refresh()
 end
 
-function BulkInv.NORMAL:_inputState()
-	if self.item_states.last and not self.item_states.last.full then
-		return self.item_states.last
-	elseif self.empty_states.last then
-		return self.empty_states.last
+function BulkInv.NORMAL:_inputSlot()
+	if self.item_slots.last and not self.item_slots.last.full then
+		return self.item_slots.last
+	elseif self.empty_slots.last then
+		return self.empty_slots.last
 	end
 
 	-- In case the last slot was full, and there's no empty, we check the other ones to make *sure* that there's no spare space.
-	for state in self.item_states:iterate() do
-		if not state.full then
-			return state
+	for slot in self.item_slots:iterate() do
+		if not slot.full then
+			return slot
 		end
 	end
 
@@ -172,38 +172,38 @@ function BulkInv.NORMAL:_inputState()
 	return nil
 end
 
-function BulkInv.IO_SLOTS:_inputState()
-	if not self.in_state.full then
-		return self.in_state
+function BulkInv.IO_SLOTS:_inputSlot()
+	if not self.in_slot.full then
+		return self.in_slot
 	else
 		return nil
 	end
 end
 
-function BulkInv.NORMAL:_outputState()
-	if self.item_states.last then
-		return self.item_state.last
+function BulkInv.NORMAL:_outputSlot()
+	if self.item_slots.last then
+		return self.item_slot.last
 	end
 
 	-- No item in storage.
 	return nil
 end
 
-function BulkInv.IO_SLOTS:_outputState()
-	if self.out_state:itemCount() > 0 then
-		return self.out_state
+function BulkInv.IO_SLOTS:_outputSlot()
+	if self.out_slot:itemCount() > 0 then
+		return self.out_slot
 	else
 		return nil
 	end
 end
 
 function BulkInv.NORMAL:_getOutputComponents(item_name)
-	local state = self:_outputState()
+	local slot = self:_outputSlot()
 
-	if state and (not item_name or state:itemName() == item_name) then
+	if slot and (not item_name or slot:itemName() == item_name) then
 		return {
 			self = self,
-			state = state,
+			slot = slot,
 			inventory = self,
 			cluster = self.parent,
 		}
@@ -215,12 +215,12 @@ end
 BulkInv.IO_SLOTS._getOutputComponents = BulkInv.NORMAL._getOutputComponents
 
 function BulkInv.NORMAL:_getInputComponents(item_name)
-	local state = self:_inputState()
+	local slot = self:_inputSlot()
 
-	if state and (not item_name or self.item_name == item_name) then
+	if slot and (not item_name or self.item_name == item_name) then
 		return {
 			self = self,
-			state = state,
+			slot = slot,
 			inventory = self,
 			cluster = self.parent,
 		}
@@ -236,7 +236,7 @@ function BulkInv.NORMAL:hasItem()
 end
 
 function BulkInv.IO_SLOTS:hasItem()
-	return self.out_state:itemCount() > 0
+	return self.out_slot:itemCount() > 0
 end
 
 function BulkInv.NORMAL:hasItem()
@@ -252,7 +252,7 @@ function BulkInv.NORMAL:itemCount()
 end
 
 function BulkInv.IO_SLOTS:itemIsAvailable()
-	return self.out_state:itemCount() > 0
+	return self.out_slot:itemCount() > 0
 end
 
 function BulkInv.NORMAL:_itemAddedHandler(item_name, amount, input_components)
@@ -276,10 +276,10 @@ end
 
 function BulkInv.IO_SLOTS:refresh()
 	os.sleep(MAX_UPDATE_WAIT_TIME)
-	self.out_state:refresh()
-	self.in_state:refresh()
+	self.out_slot:refresh()
+	self.in_slot:refresh()
 
-	local item = self.out_state:item()
+	local item = self.out_slot:item()
 	if item == nil then
 		self.item_name = 'empty'
 		self.count = 0
@@ -331,15 +331,15 @@ end
 function BulkInv.IO_SLOTS:_bareTransferAll(target_inv)
 	local MAX_ATTEMPTS = 3
 
-	local fromState = self.out_state
-	local toState = target_inv.in_state
+	local fromSlot = self.out_slot
+	local toSlot = target_inv.in_slot
 	local moved = 0
 
 	-- Move all items to empty, counting the each transter in the process.
 	local failed_attempts = 0
-	while fromState and toState and fromState:hasItem() do
-		local oldItem = fromState:item()
-		local just_moved = peripheral.call(self.name, 'pushItems', target_inv.name, fromState.slot, 64, toState.slot)
+	while fromSlot and toSlot and fromSlot:hasItem() do
+		local oldItem = fromSlot:item()
+		local just_moved = peripheral.call(self.name, 'pushItems', target_inv.name, fromSlot.index, 64, toSlot.index)
 		moved = moved + just_moved
 
 		if just_moved == 0 then
@@ -352,16 +352,16 @@ function BulkInv.IO_SLOTS:_bareTransferAll(target_inv)
 			end
 		else
 			failed_attempts = 0
-			-- ...possibly by putting this in the state.
-			fromState._item = {
+			-- ...possibly by putting this in the slot.
+			fromSlot._item = {
 				name = oldItem.name,
 				count = 64
 			}
-			toState._item = nil
+			toSlot._item = nil
 		end
 
-		fromState = self.out_state
-		toState = target_inv:_inputState()
+		fromSlot = self.out_slot
+		toSlot = target_inv:_inputSlot()
 	end
 
 	return moved
@@ -391,7 +391,7 @@ function BulkInv.IO_SLOTS:recount(empty_invs)
 
 	-- The inventory has to be empty for the count to be valid.
 	local emptied = not self:hasItem()
-	--print(self.out_state:itemCount())
+	--print(self.out_slot:itemCount())
 
 	-- Undo all moves.
 	for _,inv in pairs(empty_invs) do
@@ -707,7 +707,7 @@ function BulkCluster:_itemRemovedHandler(item_name, amount, _)
 	return true
 end
 
--- Returns a state where `item_name` can be inserted to. Returns 'nil' if none are available.
+-- Returns a slot where `item_name` can be inserted to. Returns 'nil' if none are available.
 function BulkCluster:_getInputComponents(item_name)
 	if not item_name or item_name == 'empty' then error('Item name required ("'..(item_name or 'nil')..'" provided)') end
 	if not self.invs_with_item[item_name] then
@@ -726,7 +726,7 @@ function BulkCluster:_getInputComponents(item_name)
 	return nil
 end
 
--- Returns a state from which `item_name` can be drawn from. Returns 'nil' if none are available.
+-- Returns a slot from which `item_name` can be drawn from. Returns 'nil' if none are available.
 function BulkCluster:_getOutputComponents(item_name)
 	-- NOTE: Yes, the worst case of this is O(n). However, the average case is O(1).
 	local function search_invs_item(invs_with_item)

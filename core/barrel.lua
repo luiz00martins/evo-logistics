@@ -35,13 +35,13 @@ local function _barePushItems(_, output_components, input_components, limit)
 	local item_name = output_components.inventory:itemName()
 
 	local origin = input_components.self
-	if origin.component_type == 'state' then
+	if origin.component_type == 'slot' then
 		limit = origin:_inputLimit(item_name, memoized_get_item_detail(item_name, output_components.inventory.name).maxCount)
 	end
 
 	local moved = peripheral.call(output_components.inventory.name, 'pushItem', input_components.inventory.name, item_name, limit)
 
-	if origin.component_type == 'state' and moved > 0 then
+	if origin.component_type == 'slot' and moved > 0 then
 		origin.parent:_relocatePushedItem(origin, item_name, moved)
 	end
 
@@ -52,13 +52,13 @@ local function _barePullItems(_, output_components, input_components, limit)
 	local item_name = input_components.inventory:itemName()
 
 	local origin = output_components.self
-	if origin.component_type == 'state' then
+	if origin.component_type == 'slot' then
 		limit = origin:_outputLimit(item_name)
 	end
 
 	local moved = peripheral.call(input_components.inventory.name, 'pullItem', output_components.inventory.name, item_name, limit)
 
-	if origin.component_type == 'state' and moved > 0 then
+	if origin.component_type == 'slot' and moved > 0 then
 		origin.parent:_relocatePulledItem(origin, item_name, moved)
 	end
 
