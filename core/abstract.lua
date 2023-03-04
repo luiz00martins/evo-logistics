@@ -54,7 +54,7 @@ local function _executeTransactionOperation(args)
 		local just_moved, item_moved = execute_operation(output_components, input_components, limit - moved)
 
 		moved = moved + just_moved
-		
+
 		if just_moved == 0 then
 			current_try = current_try + 1
 		else
@@ -66,13 +66,17 @@ local function _executeTransactionOperation(args)
 			break
 		end
 
-		-- NOTE: We do this because the components table contains a 'self' component, which is repeated. If we don't strip it, we will run the handler twice.
-		for _,component in pairs{slot = output_components.slot, inventory = output_components.inventory, cluster = output_components.cluster} do
-			component:_itemRemovedHandler(item_moved, just_moved, output_components)
+		-- NOTE: The order of these calls is important. It's guaranteed to go bottom up.
+		for _,part in ipairs{'slot', 'inventory', 'cluster'} do
+			if output_components[part] then
+				output_components[part]:_itemRemovedHandler(item_moved, just_moved, output_components)
+			end
 		end
 
-		for _,component in pairs{slot = input_components.slot, inventory = input_components.inventory, cluster = input_components.cluster} do
-			component:_itemAddedHandler(item_moved, just_moved, input_components)
+		for _,part in ipairs{'slot', 'inventory', 'cluster'} do
+			if input_components[part] then
+				input_components[part]:_itemAddedHandler(item_moved, just_moved, input_components)
+			end
 		end
 	end
 
