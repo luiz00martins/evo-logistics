@@ -16,6 +16,7 @@ local array_filter = utils.array_filter
 local inventory_type = utils.inventory_type
 local new_class = utils.new_class
 
+local StandardInventory = standard.StandardInventory
 local StandardCluster = standard.StandardCluster
 local transfer = abstract.transfer
 
@@ -97,9 +98,9 @@ function CraftingProfile:addRecipe(recipe)
 
 	-- Checking slots.
 	for _,slot_data in pairs(recipe.slots) do
-		if not slot_data.item_name then error('not item_name provided in crafting slot') end
-		if not slot_data.amount then error('not amount provided in crafting slot') end
-		if not slot_data.type then error('not type provided in crafting slot') end
+		if not slot_data.item_name then error('no item_name provided in crafting slot') end
+		if not slot_data.amount then error('no amount provided in crafting slot') end
+		if not slot_data.type then error('no type provided in crafting slot') end
 
 		if not table_contains(table_values(SLOT_TYPE), slot_data.type) then error('invalid crafting slot type provided ('..tostring(slot_data.type)..')') end
 	end
@@ -119,6 +120,151 @@ function CraftingProfile:removeRecipe(name)
 end
 
 
+local CRAFTING_STATUS = {
+	IDLE = 'idle',
+	TEMPLATED = 'templated',
+	CRAFTING = 'crafting',
+	CRAFTED = 'crafted',
+}
+
+local CraftingInventory = new_class(StandardInventory)
+
+function CraftingInventory:new(args)
+	local newCraftingInventory = StandardInventory:new(args)
+
+	setmetatable(newCraftingInventory, CraftingInventory)
+
+	newCraftingInventory.status = CRAFTING_STATUS.IDLE
+
+	return newCraftingInventory
+end
+
+function CraftingInventory:startRecipe(recipe, storage_clusters)
+	if self.status ~= CRAFTING_STATUS.IDLE then
+		error('Already started a recipe for '..self.executing_recipe.name)
+	end
+
+	self.executing_recipe = recipe
+	self.storage_clusters = storage_clusters
+
+	local templates = table_map(recipe.slots, function(slot) if slot.type == SLOT_TYPE.TEMPLATE then return slot end end)
+
+	self:_retrieveItems(templates)
+
+	self.status = CRAFTING_STATUS.TEMPLATED
+end
+
+function CraftingInventory:executeRecipe()
+	if self.status == CRAFTING_STATUS.IDLE then
+		error('No recipe to execute')
+	elseif self.status == CRAFTING_STATUS.EXECUTING then
+		error('Already executing recipe for '..self.executing_recipe.name)
+	end
+
+	local inputs = table_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.INPUT then return slot end end)
+	self:_retrieveItems(inputs)
+
+	self.status = CRAFTING_STATUS.CRAFTING
+end
+
+function CraftingInventory:awaitRecipe()
+	if self.status == CRAFTING_STATUS.IDLE then
+		error('No recipe to await')
+	elseif self.status == CRAFTING_STATUS.TEMPLATED
+			or self.status == CRAFTING_STATUS.CRAFTED then
+		return
+	end
+
+	local outputs = table_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.OUTPUT then return slot end end)
+
+	for j,slot_data in pairs(outputs) do
+		local output_slot = self.slots[j]
+
+		repeat
+			self:refresh()
+			os.sleep(0)
+		until output_slot:itemCount() >= slot_data.amount
+	end
+
+	self.status = CRAFTING_STATUS.CRAFTED
+end
+--
+-- function CraftingInventory:continueRecipe()
+-- 	self:awaitRecipe()
+--
+-- 	if self.status == CRAFTING_STATUS.IDLE then
+-- 		error('No recipe to continue')
+-- 	elseif self.status == CRAFTING_STATUS.CRAFTED then
+-- 		local outputs = table_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.OUTPUT then return slot end end)
+-- 		self:_dispatchItems(outputs)
+-- 	end
+--
+-- 	local inputs = table_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.INPUT then return slot end end)
+-- 	self:_retrieveItems(inputs)
+--
+-- 	self.status = CRAFTING_STATUS.CRAFTING
+-- end
+
+function CraftingInventory:finishRecipe()
+	local outputs = table_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.OUTPUT then return slot end end)
+	self:_dispatchItems(outputs)
+
+	local templates = table_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.TEMPLATE then return slot end end)
+	self:_dispatchItems(templates)
+
+	self.status = CRAFTING_STATUS.IDLE
+
+	self.executing_recipe = nil
+	self.storage_clusters = nil
+end
+
+function CraftingInventory:_retrieveItems(slots_data)
+	self:refresh()
+
+	for j,slot_data in pairs(slots_data) do
+		local amount_pulled = 0
+		local amount_needed = slot_data.amount
+
+		for _,cluster in ipairs(self.storage_clusters) do
+			if amount_pulled < amount_needed and cluster:itemIsAvailable(slot_data.item_name) then
+
+				local toSlot = self.slots[j]
+				amount_pulled = amount_pulled + transfer(cluster, toSlot, slot_data.item_name, amount_needed-amount_pulled)
+			end
+		end
+
+		if amount_pulled < amount_needed then
+			error('Not enough '..slot_data.item_name..' to execute recipe '..self.executing_recipe.name..' ('..amount_pulled..'/'..amount_needed..')')
+		end
+	end
+end
+
+function CraftingInventory:_dispatchItems(slots_data)
+	self:refresh()
+
+	for j,_ in pairs(slots_data) do
+		local output_slot = self.slots[j]
+
+		-- Removing crafted items.
+		for _,cluster in ipairs(self.storage_clusters) do
+			-- -- FIXME: :inputSlot does not exist anymore.
+			-- if output_slot:hasItem() and cluster:inputSlot(slot.item_name) then
+			-- 		transfer(output_slot, cluster)
+			-- end
+			if output_slot:hasItem() then
+				transfer(output_slot, cluster)
+			else
+				break
+			end
+		end
+
+		if output_slot:hasItem() then
+			error('Could not export item '..output_slot:itemName())
+		end
+	end
+end
+
+
 local CraftingCluster = new_class(StandardCluster)
 
 function CraftingCluster:new(args)
@@ -129,7 +275,7 @@ function CraftingCluster:new(args)
 	newCraftingCluster.item_recipes = {}
 	newCraftingCluster.recipe_profiles = {}
 
-	setmetatable(newCraftingCluster, self)
+	setmetatable(newCraftingCluster, CraftingCluster)
 	return newCraftingCluster
 end
 
@@ -193,6 +339,13 @@ function CraftingCluster:addProfile(profile)
 
 	self:_addProfileData(profile)
 	self.profiles[#self.profiles+1] = profile
+end
+
+function CraftingCluster:_createInventory(args)
+	return CraftingInventory:new{
+		parent = self,
+		name = args.inv_name or error('argument `inv_name` not provided'),
+	}
 end
 
 function CraftingCluster:refresh()
@@ -378,47 +531,36 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 	for curr_count=1,crafting_count,#invs do
 		local executions = math.min(crafting_count-curr_count+1, #invs)
 
+		-- NOTE: We separate the starting and finishing of craftings to allow it them to run in parallel. Once real parallelization is available, this can be removed.
+		
 		-- Starting up craftings.
 		for i=1,executions do
 			local inv = invs[i]
 
-			inv:refresh()
-			for j,slot_data in pairs(inputs) do
-				local amount_pulled = 0
-				local amount_needed = slot_data.amount
-
-				for _,cluster in ipairs(self.storage_clusters) do
-					if amount_pulled < amount_needed and cluster:itemIsAvailable(slot_data.item_name) then
-
-						local toSlot = inv.slots[j]
-						amount_pulled = amount_pulled + transfer(cluster, toSlot, slot_data.item_name, amount_needed-amount_pulled)
-						--amount_pulled = amount_pulled + cluster:move(fromSlot, self, toSlot, amount_needed-amount_pulled)
-					end
-				end
+			if inv.status == CRAFTING_STATUS.IDLE then
+				inv:startRecipe(recipe, self.storage_clusters)
 			end
+
+			inv:executeRecipe()
 		end
 
-		-- Finishing craftings.
+		-- Awaiting craftings.
 		for i=1,executions do
 			local inv = invs[i]
 
-			for j,slot in pairs(outputs) do
-				local output_slot = inv.slots[j]
-				-- Waiting for crafting.
-				self:waitCrafting(inv, output_slot, slot.item_name, slot.amount)
-
-				-- Removing crafted items.
-				for _,cluster in ipairs(self.storage_clusters) do
-					-- FIXME: :inputSlot does not exist anymore.
-					if output_slot:hasItem() and cluster:inputSlot(slot.item_name) then
-						transfer(output_slot, cluster)
-					end
-				end
-				if output_slot:hasItem() then
-					error('Could not export item '..output_slot:itemName())
-				end
-			end
+			inv:awaitRecipe()
 		end
+	end
+
+	-- Ending craftings.
+	for i=1,#invs do
+		local inv = invs[i]
+
+		if inv.status == CRAFTING_STATUS.CRAFTING then
+			error('Unexpected status: '..inv.status)
+		end
+
+		inv:finishRecipe()
 	end
 end
 

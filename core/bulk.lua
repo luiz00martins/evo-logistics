@@ -709,8 +709,9 @@ end
 
 -- Returns a slot where `item_name` can be inserted to. Returns 'nil' if none are available.
 function BulkCluster:_getInputComponents(item_name)
-	if not item_name or item_name == 'empty' then error('Item name required ("'..(item_name or 'nil')..'" provided)') end
-	if not self.invs_with_item[item_name] then
+	if not item_name
+			or item_name == 'empty'
+			or not self.invs_with_item[item_name] then
 		return nil
 	end
 
