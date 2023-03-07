@@ -130,13 +130,13 @@ local CRAFTING_STATUS = {
 local CraftingInventory = new_class(StandardInventory)
 
 function CraftingInventory:new(args)
-	local newCraftingInventory = StandardInventory:new(args)
+	local new_inventory = StandardInventory:new(args)
 
-	setmetatable(newCraftingInventory, CraftingInventory)
+	setmetatable(new_inventory, CraftingInventory)
 
-	newCraftingInventory.status = CRAFTING_STATUS.IDLE
+	new_inventory.status = CRAFTING_STATUS.IDLE
 
-	return newCraftingInventory
+	return new_inventory
 end
 
 function CraftingInventory:startRecipe(recipe, storage_clusters)
@@ -268,15 +268,15 @@ end
 local CraftingCluster = new_class(StandardCluster)
 
 function CraftingCluster:new(args)
-	local newCraftingCluster = StandardCluster:new(args)
+	local new_cluster = StandardCluster:new(args)
 
-	newCraftingCluster.storage_clusters = args.storage_clusters
-	newCraftingCluster.profiles = {}
-	newCraftingCluster.item_recipes = {}
-	newCraftingCluster.recipe_profiles = {}
+	new_cluster.storage_clusters = args.storage_clusters
+	new_cluster.profiles = {}
+	new_cluster.item_recipes = {}
+	new_cluster.recipe_profiles = {}
 
-	setmetatable(newCraftingCluster, CraftingCluster)
-	return newCraftingCluster
+	setmetatable(new_cluster, CraftingCluster)
+	return new_cluster
 end
 
 CraftingCluster._getPriority = _getPriority

@@ -130,15 +130,15 @@ function AbstractSlot:new(args)
 	if args.index == nil then error('parameter missing `index`') end
 	if args.parent == nil then error('parameter missing `parent`') end
 
-	local newSlot =  {
+	local new_slot =  {
 		parent = args.parent,
 		_item = args.item,
 		index = args.index,
 		component_type = 'slot',
 	}
 
-	setmetatable(newSlot, self)
-	return newSlot
+	setmetatable(new_slot, self)
+	return new_slot
 end
 
 function AbstractSlot:invName()
@@ -201,24 +201,17 @@ local AbstractInventory = new_class()
 function AbstractInventory:new(args)
 	if not args then error("missing args") end
 
-	local size
-	-- Barrel-type inventories do not have the 'size' property, so we have to check for it.
-	if utils.table_contains(peripheral.getMethods(args.name), 'size') then
-		size = peripheral.call(args.name, "size")
-	end
-
 	if args.name == nil then error("missing parameter `name`") end
 
-	local newInventory = {
+	local new_inventory = {
 		name = args.name,
 		parent = args.parent,
-		size = size,
 		slots = {},
 		component_type = 'inventory',
 	}
 
-	setmetatable(newInventory, self)
-	return newInventory
+	setmetatable(new_inventory, self)
+	return new_inventory
 end
 
 -- Returns whether `item_name` is available (for output) in the inventory.
@@ -244,14 +237,14 @@ AbstractInventory.pullItems = pullItems
 
 local AbstractCluster = new_class()
 function AbstractCluster:new(args)
-	local newCluster = {
+	local new_cluster = {
 			name = args.name or '',
 			invs = args.invs or {},
 			component_type = 'cluster',
 		}
 
-	setmetatable(newCluster, self)
-	return newCluster
+	setmetatable(new_cluster, self)
+	return new_cluster
 end
 
 -- Abstract methods (should be added by specific cluster):

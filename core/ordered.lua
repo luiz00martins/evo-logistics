@@ -18,10 +18,10 @@ local transfer = abstract.transfer
 local OrderedSlot = new_class(StandardSlot)
 
 function OrderedSlot:new(args)
-	local newOrderedSlot = StandardSlot:new(args)
+	local new_slot = StandardSlot:new(args)
 
-	setmetatable(newOrderedSlot, OrderedSlot)
-	return newOrderedSlot
+	setmetatable(new_slot, OrderedSlot)
+	return new_slot
 end
 
 function OrderedSlot:invPos()
@@ -46,19 +46,19 @@ end
 local OrderedInventory = new_class(StandardInventory)
 
 function OrderedInventory:new(args)
-	local newOrderedInventory = StandardInventory:new(args)
+	local new_inventory = StandardInventory:new(args)
 
 	-- Could not find inventory.
-	if not newOrderedInventory then
+	if not new_inventory then
 		return nil
 	end
 
 	if args.pos == nil then error("missing parameter `pos`") end
 
-	newOrderedInventory.pos = args.pos
+	new_inventory.pos = args.pos
 
-	setmetatable(newOrderedInventory, self)
-	return newOrderedInventory
+	setmetatable(new_inventory, self)
+	return new_inventory
 end
 
 function OrderedInventory:_repopulate()
@@ -136,10 +136,10 @@ end
 
 local OrderedCluster = new_class(StandardCluster)
 function OrderedCluster:new(args)
-	local newOrderedCluster = StandardCluster:new(args)
+	local new_cluster = StandardCluster:new(args)
 
-	setmetatable(newOrderedCluster, OrderedCluster)
-	return newOrderedCluster
+	setmetatable(new_cluster, OrderedCluster)
+	return new_cluster
 end
 
 -- Adds a new inventory to the cluster. Data for the inventory may be build.

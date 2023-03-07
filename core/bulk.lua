@@ -2,13 +2,13 @@
 local utils = require('/logos-library.utils.utils')
 local dl_list = require('/logos-library.utils.dl_list')
 local abstract = require('/logos-library.core.abstract')
-local standard = require('/logos-library.core.standard')
+local shaped = require('/logos-library.core.shaped')
 
 local table_reduce = utils.table_reduce
 local array_map = utils.array_map
 local new_class = utils.new_class
 
-local StandardSlot = standard.StandardSlot
+local StandardSlot = shaped.ShapedSlot
 local AbstractInventory = abstract.AbstractInventory
 local AbstractCluster = abstract.AbstractCluster
 
@@ -81,36 +81,45 @@ local BulkInv = {
 }
 
 function BulkInv:new(args)
-	local newBulkInv = BulkInvBase:new(args)
+	local new_inventory = BulkInvBase:new(args)
 
 	-- Could not find inventory.
-	if not newBulkInv then
+	if not new_inventory then
 		return nil
 	end
 
-	if newBulkInv.size == 2 then
-		setmetatable(newBulkInv, BulkInv.IO_SLOTS)
+	local size
+	if utils.table_contains(peripheral.getMethods(args.name), 'size') then
+		size = peripheral.call(args.name, "size")
+	else
+		error('Inventory does not have a size method.')
+	end
 
-		newBulkInv.count = 0
-		local items = peripheral.call(newBulkInv.name, "list")
+	new_inventory.size = size
 
-		newBulkInv.in_slot = BulkSlot:new{
-			parent = newBulkInv,
+	if size == 2 then
+		setmetatable(new_inventory, BulkInv.IO_SLOTS)
+
+		new_inventory.count = 0
+		local items = peripheral.call(new_inventory.name, "list")
+
+		new_inventory.in_slot = BulkSlot:new{
+			parent = new_inventory,
 			index = 1,
 			item = items[1],
 			full = false,
 		}
-		newBulkInv.out_slot = BulkSlot:new{
-			parent = newBulkInv,
+		new_inventory.out_slot = BulkSlot:new{
+			parent = new_inventory,
 			index = 2,
 			item = items[2],
 			full = false,
 		}
 	else
-		setmetatable(newBulkInv, BulkInv.NORMAL)
+		setmetatable(new_inventory, BulkInv.NORMAL)
 	end
 
-	return newBulkInv
+	return new_inventory
 end
 
 function BulkInv.NORMAL:catalog()
@@ -413,13 +422,13 @@ end
 
 local BulkCluster = new_class(AbstractCluster)
 function BulkCluster:new (args)
-	local newBulkCluster = AbstractCluster:new(args)
+	local new_cluster = AbstractCluster:new(args)
 
- 	newBulkCluster.item_count = {}
-	newBulkCluster.invs_with_item = {}
+ 	new_cluster.item_count = {}
+	new_cluster.invs_with_item = {}
 
-	setmetatable(newBulkCluster, self)
-	return newBulkCluster
+	setmetatable(new_cluster, self)
+	return new_cluster
 end
 
 BulkCluster._getPriority = _getPriority
