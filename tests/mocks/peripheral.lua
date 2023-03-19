@@ -750,7 +750,7 @@ end
 peripheral.call = function(target, func_name, ...)
 	-- This deals with things that are not inventories.
 	if table_contains({'isWireless', 'isPresent', 'getType', 'getNamesRemote'}, func_name) then
-		return peripheral.methods[func_name](target, ...)
+		return peripheral[func_name](target, ...)
 	end
 
 	local inv = inventories[target]
