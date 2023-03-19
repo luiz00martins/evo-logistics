@@ -37,6 +37,16 @@ local SLOT_TYPE = {
 
 local CraftingRecipe = new_class()
 
+local function _check_output(slots)
+	for _, slot in pairs(slots) do
+		if slot.type == SLOT_TYPE.OUTPUT then
+			return true
+		end
+	end
+
+	return false
+end
+
 function CraftingRecipe:new(args)
 	if not args then error("parameter missing `args`")
 	elseif not args.name then error("parameter missing `name`")
@@ -52,6 +62,8 @@ function CraftingRecipe:new(args)
 
 		if not table_contains(table_values(SLOT_TYPE), slot_data.type) then error('invalid crafting slot type provided ('..tostring(slot_data.type)..')') end
 	end
+
+	if not _check_output(args.slots) then error('no output slots found in recipe '..args.name) end
 
 	local new_recipe = {
 		name = args.name,
