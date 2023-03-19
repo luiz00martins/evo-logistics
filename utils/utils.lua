@@ -1,3 +1,5 @@
+local _M = {}
+
 local function serializeInt(i)
         local s = ""
         repeat
@@ -156,6 +158,7 @@ local function log(vals, nvals, sep, endchar)
 	file.flush()
 	file.close()
 end
+_M.log = log
 
 -- Retuns the order (i.e. list of keys) of the given table based on a comparison function of its values.
 local function get_order(tab, cmp)
@@ -183,6 +186,41 @@ local function get_order(tab, cmp)
 	
 	return order
 end
+_M.get_order = get_order
+
+local function table_compare_by_value(t1, t2, memo, visited)
+	if type(t1) ~= type(t2) then
+		return false
+	elseif type(t1) ~= "table" then
+		return t1 == t2
+	else
+		-- We do some memoization to avoid repeating work on the second loop.
+		memo = memo or {}
+		-- We need to keep track of visited tables to avoid infinite loops.
+		visited = visited or {}
+
+		if visited[t1] or visited[t2] then
+			return true
+		end
+
+		visited[t1] = true
+		visited[t2] = true
+
+		for k, v in pairs(t1) do
+			if not table_compare_by_value(v, t2[k], memo, visited) then
+				return false
+			end
+			memo[k] = true
+		end
+		for k, v in pairs(t2) do
+			if not memo[k] and not table_compare_by_value(v, t1[k], memo, visited) then
+				return false
+			end
+		end
+		return true
+	end
+end
+_M.table_compare_by_value = table_compare_by_value
 
 local function table_shallowcopy(orig)
     local orig_type = type(orig)
@@ -197,6 +235,7 @@ local function table_shallowcopy(orig)
     end
     return copy
 end
+_M.table_shallowcopy = table_shallowcopy
 
 local function table_deepcopy(orig, copies)
     copies = copies or {}
@@ -217,6 +256,7 @@ local function table_deepcopy(orig, copies)
     end
     return copy
 end
+_M.table_deepcopy = table_deepcopy
 
 local function table_keys(t)
 		local keys = {}
@@ -226,6 +266,7 @@ local function table_keys(t)
 
 		return keys
 end
+_M.table_keys = table_keys
 
 local function table_values(t)
 		local values = {}
@@ -235,6 +276,7 @@ local function table_values(t)
 
 		return values
 end
+_M.table_values = table_values
 
 local function array_contains(arr, val)
     for i, v in ipairs(arr) do
@@ -245,6 +287,7 @@ local function array_contains(arr, val)
 
     return false
 end
+_M.array_contains = array_contains
 
 
 local function _format_key(k)
@@ -305,6 +348,7 @@ local function to_string( tbl )
         return tostring(tbl)
     end
 end
+_M.tostring = to_string
 
 local function table_contains(tab, val)
     for i, v in pairs(tab) do
@@ -315,6 +359,7 @@ local function table_contains(tab, val)
 
     return false
 end
+_M.table_contains = table_contains
 
 local function array_unique(arr)
 	local unique = {}
@@ -329,6 +374,7 @@ local function array_unique(arr)
 
 	return unique
 end
+_M.array_unique = array_unique
 
 local function table_partition(tab, pred)
 	local partitioned = {}
@@ -344,6 +390,7 @@ local function table_partition(tab, pred)
 
 	return partitioned
 end
+_M.table_partition = table_partition
 
 local function array_partition(tab, pred)
 	local partitioned = {}
@@ -354,6 +401,7 @@ local function array_partition(tab, pred)
 
 	return partitioned
 end
+_M.array_partition = array_partition
 
 local function array_filter(tab, filter)
 	local filtered = {}
@@ -364,6 +412,7 @@ local function array_filter(tab, filter)
 	end
 	return filtered
 end
+_M.array_filter = array_filter
 
 local function table_filter(tab, filter)
 	local filtered = {}
@@ -374,6 +423,7 @@ local function table_filter(tab, filter)
 	end
 	return filtered
 end
+_M.table_filter = table_filter
 
 local function array_reduce(list, fn, init)
 	local acc = init or next(list)
@@ -382,6 +432,7 @@ local function array_reduce(list, fn, init)
 	end
 	return acc
 end
+_M.array_reduce = array_reduce
 
 local function table_reduce(list, fn, init)
 	local acc
@@ -396,6 +447,7 @@ local function table_reduce(list, fn, init)
 	end
 	return acc
 end
+_M.table_reduce = table_reduce
 
 local function array_map(array, fn)
 	local new_array = {}
@@ -404,6 +456,7 @@ local function array_map(array, fn)
 	end
 	return new_array
 end
+_M.array_map = array_map
 
 local function table_map(table, fn)
 	local new_table = {}
@@ -412,6 +465,7 @@ local function table_map(table, fn)
 	end
 	return new_table
 end
+_M.table_map = table_map
 
 local function reversedipairsiter(t, i)
     i = i - 1
@@ -419,9 +473,11 @@ local function reversedipairsiter(t, i)
         return i, t[i]
     end
 end
-function reversed_ipairs(t)
+
+local function reversed_ipairs(t)
     return reversedipairsiter, t, #t + 1
 end
+_M.reversed_ipairs = reversed_ipairs
 
 local function string_split(inputstr, sep)
 	if sep == nil then
@@ -436,6 +492,7 @@ local function string_split(inputstr, sep)
 
 	return t
 end
+_M.string_split = string_split
 
 local function log_error(fn)
 	local status, err, ret = xpcall(fn, debug.traceback)
@@ -451,124 +508,7 @@ local function log_error(fn)
 
 	return ret
 end
-
-local function get_modem_side(is_wireless)
-	if is_wireless == nil then
-		error('wirelessness should be specified')
-	end
-
-	for _, side in pairs(rs.getSides()) do
-		if peripheral.isPresent(side)
-				and peripheral.getType(side) == "modem"
-				and (is_wireless == nil or peripheral.call(side, "isWireless") == is_wireless) then 
-			return side 
-		end
-	end
-
-	return nil
-end
-
-local function rednet_open(is_wireless)
-	local modem_side = get_modem_side(is_wireless)
-
-	if not modem_side then
-		return false
-	else
-		rednet.open(modem_side)
-		return true
-	end
-end
-
-local function get_connected_inventories()
-	-- FIXME: you should probalbly... uh... y'know... actually filter these out.
-	local blacklist = {'computer'}
-
-	local modem_side = get_modem_side(false)
-
-	if not modem_side then
-		error('no modem found')
-	end
-
-	return peripheral.call(modem_side, "getNamesRemote")
-end
-
-local function inventory_type(inv_name)
-	local stripped = string_split(inv_name, '_')
-	stripped[#stripped] = nil
-	return table.concat(stripped, '_')
-end
-
-local function shorten_item_names(item_names)
-	local shortened_item_names = {}
-	-- Tracks shortened item names for clashing.
-	local tracker = {}
-
-	for i,item_name in ipairs(item_names) do
-		local shortened = string_split(item_name, ':')[2]
-
-		if not tracker[shortened] then
-			tracker[shortened] = i
-			shortened_item_names[i] = shortened
-		else
-			-- A clash happened. Set both of them to their original names.
-			local other_i = tracker[shortened]
-			local other_item_name = item_names[other_i]
-
-			shortened_item_names[i] = item_name
-			shortened_item_names[other_i] = other_item_name
-		end
-	end
-
-	return shortened_item_names
-end
-
-local function new_class(...)
-    local new_cls = {}
-
-    -- Add properties and methods from base classes
-		for i, base in ipairs({...}) do
-			for k, v in pairs(base) do
-				if k ~= "__index" then
-					new_cls[k] = v
-				end
-			end
-		end
-
-    -- Set metatable for new class
-    new_cls.__index = new_cls
-
-    return new_cls
-end
+_M.log_error = log_error
 
 -- Returning functions.
-return {
-	table_deepcopy = table_deepcopy,
-	table_shallowcopy = table_shallowcopy,
-	table_keys = table_keys,
-	table_values = table_values,
-	tostring = to_string,
-	array_contains = array_contains,
-	table_contains = table_contains,
-	array_unique = array_unique,
-	array_partition = array_partition,
-	table_partition = table_partition,
-	array_filter = array_filter,
-	table_filter = table_filter,
-	array_reduce = array_reduce,
-	table_reduce = table_reduce,
-	array_map = array_map,
-	table_map = table_map,
-	get_order = get_order,
-	string_split = string_split,
-	reversed_ipairs = reversed_ipairs,
-	get_modem_side = get_modem_side,
-	rednet_open = rednet_open,
-	get_connected_inventories = get_connected_inventories,
-	inventory_type = inventory_type,
-	shorten_item_names = shorten_item_names,
-	new_class = new_class,
-	log = log,
-	serialize = serialize,
-	deserialize = deserialize,
-}
-
+return _M
