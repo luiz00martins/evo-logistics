@@ -2,8 +2,8 @@ local utils = require('/logos-library.utils.utils')
 local abstract = require('/logos-library.core.abstract')
 local standard = require('/logos-library.core.standard')
 
+local new_class = require('/logos-library.utils.class').new_class
 local transfer = abstract.transfer
-local new_class = utils.new_class
 local array_reduce = utils.array_reduce
 local array_map = utils.array_map
 
@@ -144,7 +144,7 @@ end
 function InterfaceCluster:_createInventory(args)
 	return InterfaceInventory:new{
 		parent = self,
-		name = args.inv_name or error('argument `inv_name` not provided'),
+		name = args.name or error('argument `name` not provided'),
 		storage_clusters = self.storage_clusters,
 	}
 end

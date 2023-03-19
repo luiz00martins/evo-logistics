@@ -2,9 +2,8 @@ local utils = require('/logos-library.utils.utils')
 local abstract = require('/logos-library.core.abstract')
 local standard = require('/logos-library.core.standard')
 
+local new_class = require('/logos-library.utils.class').new_class
 local get_order = utils.get_order
-local new_class = utils.new_class
-local table_filter = utils.table_filter
 local reversed_ipairs = utils.reversed_ipairs
 
 local StandardSlot = standard.StandardSlot
@@ -146,7 +145,7 @@ end
 function OrderedCluster:registerInventory(args)
 	local inv = OrderedInventory:new{
 		parent = self,
-		name = args.inv_name,
+		name = args.name,
 		pos = #self.invs+1,
 	}
 
@@ -176,7 +175,7 @@ end
 
 -- Swaps the item in `from_slot` with the item in `to_slot`.
 
-function OrderedCluster:_swap(from_slot, to_cluster, to_slot)
+function OrderedCluster:_swap(from_slot, _, to_slot)
 	if from_slot == to_slot then
 		return
 	elseif not from_slot:hasItem() then

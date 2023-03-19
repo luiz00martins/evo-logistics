@@ -2,9 +2,9 @@ local utils = require('/logos-library.utils.utils')
 local dl_list = require('/logos-library.utils.dl_list')
 local abstract = require('/logos-library.core.abstract')
 
+local new_class = require('/logos-library.utils.class').new_class
 local reversed_ipairs = utils.reversed_ipairs
 local table_reduce = utils.table_reduce
-local new_class = utils.new_class
 local table_map = utils.table_map
 local table_filter = utils.table_filter
 
@@ -16,11 +16,11 @@ local SHAPED_COMPONENT_PRIORITY = 1
 
 local function _getPriority(_) return SHAPED_COMPONENT_PRIORITY end
 
-local function _barePushItems(_, output_components, input_components, limit)
+local function _barePushItems(_, output_components, input_components, _, limit)
 	return peripheral.call(output_components.inventory.name, 'pushItems', input_components.inventory.name, output_components.slot.index, limit, input_components.slot.index), output_components.slot:itemName()
 end
 
-local function _barePullItems(_, output_components, input_components, limit)
+local function _barePullItems(_, output_components, input_components, _, limit)
 	return peripheral.call(input_components.inventory.name, 'pullItems', output_components.inventory.name, output_components.slot.index, limit, input_components.slot.index), output_components.slot:itemName()
 end
 
@@ -153,6 +153,9 @@ function ShapedInventory:new(args)
 	new_inventory.item_slots = {}
 
 	setmetatable(new_inventory, self)
+
+	new_inventory:_repopulate()
+
 	return new_inventory
 end
 
@@ -595,7 +598,7 @@ function ShapedCluster:loadData(data)
 	if data.inv_names then
 		for _,inv_name in ipairs(data.inv_names) do
 			if peripheral.isPresent(inv_name) then
-				self:registerInventory{inv_name = inv_name}
+				self:registerInventory{name = inv_name}
 			else
 				utils.log("Inventory "..inv_name.." is no longer present")
 			end
@@ -672,7 +675,7 @@ end
 function ShapedCluster:_createInventory(args)
 	return ShapedInventory:new{
 		parent = self,
-		name = args.inv_name or error('argument `inv_name` not provided'),
+		name = args.name or error('argument `name` not provided'),
 	}
 end
 

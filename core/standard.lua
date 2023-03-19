@@ -1,10 +1,10 @@
-local utils = require('/logos-library.utils.utils')
-
 local shaped = require('/logos-library.core.shaped')
 
-local StandardSlot = utils.new_class(shaped.ShapedSlot)
-local StandardInventory = utils.new_class(shaped.ShapedInventory)
-local StandardCluster = utils.new_class(shaped.ShapedCluster)
+local new_class = require('/logos-library.utils.class').new_class
+
+local StandardSlot = new_class(shaped.ShapedSlot)
+local StandardInventory = new_class(shaped.ShapedInventory)
+local StandardCluster = new_class(shaped.ShapedCluster)
 
 return {
 	StandardSlot = StandardSlot,

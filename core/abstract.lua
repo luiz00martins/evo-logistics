@@ -1,5 +1,5 @@
 local utils = require('/logos-library.utils.utils')
-local new_class = utils.new_class
+local new_class = require('/logos-library.utils.class').new_class
 
 local function _executeTransactionOperation(args)
 	-- Validating arguments.
@@ -10,7 +10,6 @@ local function _executeTransactionOperation(args)
 
 	if args.limit then
 		if args.limit and args.limit < 1 then error('argument limit must be greater than 0')
-		elseif args.limit and args.limit > args.source:itemCount(args.item_name) then error('limit must be less than or equal to the amount of items in the cluster ('..utils.tostring(args.limit)..'/'..utils.tostring(args.source:itemCount(args.item_name))..')')
 		end
 	end
 
@@ -23,12 +22,12 @@ local function _executeTransactionOperation(args)
 	-- Moving items.
 	local execute_operation
 	if operation == 'push' then
-		execute_operation = function(output_components, input_components, _limit)
-			return source:_barePushItems(output_components, input_components, _limit)
+		execute_operation = function(output_components, input_components, _item_name, _limit)
+			return source:_barePushItems(output_components, input_components, _item_name, _limit)
 		end
 	elseif operation == 'pull' then
-		execute_operation = function(output_components, input_components, _limit)
-			return target:_barePullItems(output_components, input_components, _limit)
+		execute_operation = function(output_components, input_components, _item_name, _limit)
+			return target:_barePullItems(output_components, input_components, _item_name, _limit)
 		end
 	else
 		error('invalid operation '..utils.tostring(operation))
@@ -39,19 +38,30 @@ local function _executeTransactionOperation(args)
 	local current_try = 0
 	while moved < limit do
 		local output_components = source:_getOutputComponents(item_name)
-		local input_components = target:_getInputComponents(item_name)
+		if not output_components then break end
 
-		if not output_components or not input_components then
-			if not output_components then
-				utils.log('no output components for '..utils.tostring(item_name))
-			else
-				utils.log('no input components for '..utils.tostring(item_name))
+		-- This exists (instead of reusing the item name) because we want the input to know which item we are putting in even when the original 'item_name' is empty, so the target has the opportunity to return a partially filled slot with that item. Otherwise, the original 'item_name' count be 'nil', and the target wound only return empty states.
+		-- HACK: This seems like it knows too much about the descendents. I feel like this discering should not be the responsibility of this function.
+		local output_item_name
+		if output_components.slot then
+			output_item_name = output_components.slot:itemName()
+		elseif output_components.inventory then
+			if output_components.inventory.itemName then
+				output_item_name = output_components.inventory:itemName()
+			elseif output_components.inventory.itemNames then
+				if item_name then
+					output_item_name = item_name
+				else
+					local item_names = output_components.inventory:itemNames()
+					output_item_name = item_names[1]
+				end
 			end
-
-			break
 		end
 
-		local just_moved, item_moved = execute_operation(output_components, input_components, limit - moved)
+		local input_components = target:_getInputComponents(output_item_name)
+		if not input_components then break end
+
+		local just_moved, item_moved = execute_operation(output_components, input_components, item_name, limit - moved)
 
 		moved = moved + just_moved
 

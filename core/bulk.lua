@@ -4,9 +4,9 @@ local dl_list = require('/logos-library.utils.dl_list')
 local abstract = require('/logos-library.core.abstract')
 local shaped = require('/logos-library.core.shaped')
 
+local new_class = require('/logos-library.utils.class').new_class
 local table_reduce = utils.table_reduce
 local array_map = utils.array_map
-local new_class = utils.new_class
 
 local StandardSlot = shaped.ShapedSlot
 local AbstractInventory = abstract.AbstractInventory
@@ -16,11 +16,11 @@ local BULK_COMPONENT_PRIOTITY = 1
 
 local function _getPriority() return BULK_COMPONENT_PRIOTITY end
 
-local function _barePushItems(_, output_components, input_components, limit)
+local function _barePushItems(_, output_components, input_components, _, limit)
 	return peripheral.call(output_components.inventory.name, 'pushItems', input_components.inventory.name, output_components.slot.index, limit, input_components.slot.index), output_components.slot:itemName()
 end
 
-local function _barePullItems(_, output_components, input_components, limit)
+local function _barePullItems(_, output_components, input_components, _, limit)
 	return peripheral.call(input_components.inventory.name, 'pullItems', output_components.inventory.name, output_components.slot.index, limit, input_components.slot.index), output_components.slot:itemName()
 end
 
@@ -502,7 +502,7 @@ end
 function BulkCluster:_createInventory(args)
 	return BulkInv:new{
 		parent = self,
-		name = args.inv_name or error('argument `inv_name` not provided'),
+		name = args.name or error('argument `name` not provided'),
 	}
 end
 

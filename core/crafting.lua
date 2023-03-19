@@ -1,9 +1,11 @@
 ---@diagnostic disable: need-check-nil
 local utils = require('/logos-library.utils.utils')
+local inv_utils = require('/logos-library.utils.inventories')
 local abstract = require('/logos-library.core.abstract')
-local standard = require('/logos-library.core.standard')
+local shaped = require('/logos-library.core.shaped')
+local shapeless = require('/logos-library.core.shapeless')
 
-local get_connected_inventories = utils.get_connected_inventories
+local new_class = require('/logos-library.utils.class').new_class
 local array_unique = utils.array_unique
 local array_map = utils.array_map
 local table_map = utils.table_map
@@ -13,11 +15,12 @@ local table_shallowcopy = utils.table_shallowcopy
 local table_contains = utils.table_contains
 local array_contains = utils.array_contains
 local array_filter = utils.array_filter
-local inventory_type = utils.inventory_type
-local new_class = utils.new_class
+local inventory_type = inv_utils.inventory_type
+local is_shaped = inv_utils.is_shaped
 
-local StandardInventory = standard.StandardInventory
-local StandardCluster = standard.StandardCluster
+local ShapedInventory = shaped.ShapedInventory
+local ShapelessInventory = shapeless.ShapelessInventory
+local AbstractCluster = abstract.AbstractCluster
 local transfer = abstract.transfer
 
 local CRAFTING_COMPONENT_PRIORITY = 1
@@ -30,37 +33,48 @@ local SLOT_TYPE = {
 	TEMPLATE = 'template',
 }
 
+-- Crafting Recipe Class
+
+local CraftingRecipe = new_class()
+
+function CraftingRecipe:new(args)
+	if not args then error("parameter missing `args`")
+	elseif not args.name then error("parameter missing `name`")
+	elseif not args.slots then error('recipe '..args.name..' missing `slots`')
+	elseif args.is_shaped == nil then error('recipe '..args.name..' missing `is_shaped`')
+	end
+
+	-- Checking slots.
+	for _,slot_data in pairs(args.slots) do
+		if not slot_data.item_name then error('no item_name provided in crafting slot') end
+		if not slot_data.amount then error('no amount provided in crafting slot') end
+		if not slot_data.type then error('no type provided in crafting slot') end
+
+		if not table_contains(table_values(SLOT_TYPE), slot_data.type) then error('invalid crafting slot type provided ('..tostring(slot_data.type)..')') end
+	end
+
+	local new_recipe = {
+		name = args.name,
+		is_shaped = args.is_shaped,
+		slots = args.slots,
+	}
+
+	setmetatable(new_recipe, CraftingRecipe)
+	return new_recipe
+end
+
 -- Crafting Profile Class
 
-local CraftingProfile = {}
-CraftingProfile.__index = CraftingProfile
+local CraftingProfile = new_class()
 
 function CraftingProfile:new(args)
 	-- These arguments must be passed.
 	if args.name == nil then error("parameter missing `name`") end
 	if args.inv_type == nil then error("parameter missing `inv_type`") end
 
-	if not args.inv_size then
-		-- Finding out size.
-		local inventories = get_connected_inventories()
-		for _,inv_name in ipairs(inventories) do
-			local inv_type = inventory_type(inv_name)
-
-			if inv_type == args.inv_type then
-				args.inv_size = peripheral.call(inv_name, "size")
-				break
-			end
-		end
-
-		if not args.inv_size then
-			error('Could not probe an inventory of type '..args.inv_type)
-		end
-	end
-
 	local newCraftingProfile =  {
 		name = args.name,
 		inv_type = args.inv_type,
-		inv_size = args.inv_size,
 		recipes = args.recipes or {}
 	}
 
@@ -73,7 +87,6 @@ function CraftingProfile:serialize()
 		name = self.name,
 		recipes = self.recipes,
 		inv_type = self.inv_type,
-		inv_size = self.inv_size,
 	}
 
 	return serialized
@@ -86,24 +99,17 @@ function CraftingProfile:fromSerialized(serialized)
 		name = unserialized.name,
 		recipes = unserialized.recipes,
 		inv_type = unserialized.inv_type,
-		inv_size = unserialized.inv_size,
 	}
 
 	return newCraftingProfile
 end
 
-function CraftingProfile:addRecipe(recipe)
-	if not recipe.name then error('Recipe missing ´name´') end
-	if not recipe.slots then error('Recipe '..recipe.name..' missing `slots`') end
-
-	-- Checking slots.
-	for _,slot_data in pairs(recipe.slots) do
-		if not slot_data.item_name then error('no item_name provided in crafting slot') end
-		if not slot_data.amount then error('no amount provided in crafting slot') end
-		if not slot_data.type then error('no type provided in crafting slot') end
-
-		if not table_contains(table_values(SLOT_TYPE), slot_data.type) then error('invalid crafting slot type provided ('..tostring(slot_data.type)..')') end
+function CraftingProfile:addRecipe(recipe_args)
+	if not recipe_args.is_shaped then
+		recipe_args.is_shaped = is_shaped(self.inv_type)
 	end
+
+	local recipe = CraftingRecipe:new(recipe_args)
 
 	self.recipes[#self.recipes+1] = recipe
 end
@@ -127,19 +133,26 @@ local CRAFTING_STATUS = {
 	CRAFTED = 'crafted',
 }
 
-local CraftingInventory = new_class(StandardInventory)
+local ShapedCraftingInventory = new_class(ShapedInventory)
+local ShapelessCraftingInventory = new_class(ShapelessInventory)
+local CraftingInventory = new_class()
 
 function CraftingInventory:new(args)
-	local new_inventory = StandardInventory:new(args)
-
-	setmetatable(new_inventory, CraftingInventory)
+	local new_inventory
+	if is_shaped(inventory_type(args.name)) then
+		new_inventory = ShapedInventory:new(args)
+		setmetatable(new_inventory, ShapedCraftingInventory)
+	else
+		new_inventory = ShapelessInventory:new(args)
+		setmetatable(new_inventory, ShapelessCraftingInventory)
+	end
 
 	new_inventory.status = CRAFTING_STATUS.IDLE
 
 	return new_inventory
 end
 
-function CraftingInventory:startRecipe(recipe, storage_clusters)
+function ShapedCraftingInventory:startRecipe(recipe, storage_clusters)
 	if self.status ~= CRAFTING_STATUS.IDLE then
 		error('Already started a recipe for '..self.executing_recipe.name)
 	end
@@ -153,8 +166,9 @@ function CraftingInventory:startRecipe(recipe, storage_clusters)
 
 	self.status = CRAFTING_STATUS.TEMPLATED
 end
+ShapelessCraftingInventory.startRecipe = ShapedCraftingInventory.startRecipe
 
-function CraftingInventory:executeRecipe()
+function ShapedCraftingInventory:executeRecipe()
 	if self.status == CRAFTING_STATUS.IDLE then
 		error('No recipe to execute')
 	elseif self.status == CRAFTING_STATUS.EXECUTING then
@@ -166,8 +180,9 @@ function CraftingInventory:executeRecipe()
 
 	self.status = CRAFTING_STATUS.CRAFTING
 end
+ShapelessCraftingInventory.executeRecipe = ShapedCraftingInventory.executeRecipe
 
-function CraftingInventory:awaitRecipe()
+function ShapedCraftingInventory:awaitRecipe()
 	if self.status == CRAFTING_STATUS.IDLE then
 		error('No recipe to await')
 	elseif self.status == CRAFTING_STATUS.TEMPLATED
@@ -188,24 +203,30 @@ function CraftingInventory:awaitRecipe()
 
 	self.status = CRAFTING_STATUS.CRAFTED
 end
---
--- function CraftingInventory:continueRecipe()
--- 	self:awaitRecipe()
---
--- 	if self.status == CRAFTING_STATUS.IDLE then
--- 		error('No recipe to continue')
--- 	elseif self.status == CRAFTING_STATUS.CRAFTED then
--- 		local outputs = table_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.OUTPUT then return slot end end)
--- 		self:_dispatchItems(outputs)
--- 	end
---
--- 	local inputs = table_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.INPUT then return slot end end)
--- 	self:_retrieveItems(inputs)
---
--- 	self.status = CRAFTING_STATUS.CRAFTING
--- end
 
-function CraftingInventory:finishRecipe()
+function ShapelessCraftingInventory:awaitRecipe()
+	if self.status == CRAFTING_STATUS.IDLE then
+		error('No recipe to await')
+	elseif self.status == CRAFTING_STATUS.TEMPLATED
+			or self.status == CRAFTING_STATUS.CRAFTED then
+		return
+	end
+
+	local outputs = table_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.OUTPUT then return slot end end)
+
+	for _,slot_data in pairs(outputs) do
+		repeat
+			self:refresh()
+			os.sleep(0)
+		-- WARNING: We do not check for the amount of items (as there's no way to guarantee it for shapeless slots), only the existence of it.
+		until self:hasItem(slot_data.item_name)
+		utils.log(slot_data.item_name..':'..utils.tostring(self:hasItem(slot_data.item_name)))
+	end
+
+	self.status = CRAFTING_STATUS.CRAFTED
+end
+
+function ShapedCraftingInventory:finishRecipe()
 	local outputs = table_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.OUTPUT then return slot end end)
 	self:_dispatchItems(outputs)
 
@@ -217,8 +238,9 @@ function CraftingInventory:finishRecipe()
 	self.executing_recipe = nil
 	self.storage_clusters = nil
 end
+ShapelessCraftingInventory.finishRecipe = ShapedCraftingInventory.finishRecipe
 
-function CraftingInventory:_retrieveItems(slots_data)
+function ShapedCraftingInventory:_retrieveItems(slots_data)
 	self:refresh()
 
 	for j,slot_data in pairs(slots_data) do
@@ -239,7 +261,27 @@ function CraftingInventory:_retrieveItems(slots_data)
 	end
 end
 
-function CraftingInventory:_dispatchItems(slots_data)
+function ShapelessCraftingInventory:_retrieveItems(slots_data)
+	self:refresh()
+
+	for _,slot_data in ipairs(slots_data) do
+		local amount_pulled = 0
+		local amount_needed = slot_data.amount
+
+		for _,cluster in ipairs(self.storage_clusters) do
+			if amount_pulled < amount_needed and cluster:itemIsAvailable(slot_data.item_name) then
+
+				amount_pulled = amount_pulled + transfer(cluster, self, slot_data.item_name, amount_needed-amount_pulled)
+			end
+		end
+
+		if amount_pulled < amount_needed then
+			error('Not enough '..slot_data.item_name..' to execute recipe '..self.executing_recipe.name..' ('..amount_pulled..'/'..amount_needed..')')
+		end
+	end
+end
+
+function ShapedCraftingInventory:_dispatchItems(slots_data)
 	self:refresh()
 
 	for j,_ in pairs(slots_data) do
@@ -247,10 +289,6 @@ function CraftingInventory:_dispatchItems(slots_data)
 
 		-- Removing crafted items.
 		for _,cluster in ipairs(self.storage_clusters) do
-			-- -- FIXME: :inputSlot does not exist anymore.
-			-- if output_slot:hasItem() and cluster:inputSlot(slot.item_name) then
-			-- 		transfer(output_slot, cluster)
-			-- end
 			if output_slot:hasItem() then
 				transfer(output_slot, cluster)
 			else
@@ -264,11 +302,32 @@ function CraftingInventory:_dispatchItems(slots_data)
 	end
 end
 
+function ShapelessCraftingInventory:_dispatchItems(slots_data)
+	self:refresh()
 
-local CraftingCluster = new_class(StandardCluster)
+	for _,slot_data in pairs(slots_data) do
+		local moved = 0
+
+		-- Removing crafted items.
+		for _,cluster in ipairs(self.storage_clusters) do
+			if moved < slot_data.amount then
+				moved = moved + transfer(self, cluster, slot_data.item_name, slot_data.amount-moved)
+			else
+				break
+			end
+		end
+
+		if moved < slot_data.amount then
+			error('Could not export item '..slot_data.item_name..' ('..moved..'/'..slot_data.amount..')')
+		end
+	end
+end
+
+
+local CraftingCluster = new_class(AbstractCluster)
 
 function CraftingCluster:new(args)
-	local new_cluster = StandardCluster:new(args)
+	local new_cluster = AbstractCluster:new(args)
 
 	new_cluster.storage_clusters = args.storage_clusters
 	new_cluster.profiles = {}
@@ -280,6 +339,10 @@ function CraftingCluster:new(args)
 end
 
 CraftingCluster._getPriority = _getPriority
+
+function CraftingCluster:dataPath()
+	return "/logistics_data/"..self.name..".data"
+end
 
 function CraftingCluster:saveData()
 	local profiles = array_map(self.profiles, function(profile) return profile:serialize() end)
@@ -307,7 +370,7 @@ function CraftingCluster:loadData(data)
 	self.invs	= {}
 	for _,inv_name in ipairs(data.inv_names) do
 		if peripheral.isPresent(inv_name) then
-			self:registerInventory{inv_name = inv_name}
+			self:registerInventory{name = inv_name}
 		else
 			utils.log("Inventory "..inv_name.." is no longer present")
 		end
@@ -316,24 +379,48 @@ function CraftingCluster:loadData(data)
 	return true
 end
 
+function CraftingCluster:registerInventory(args)
+	local inv = CraftingInventory:new(args)
+
+	table.insert(self.invs, inv)
+end
+
+function CraftingCluster:unregisterInventory(inv_name)
+	for i,inv in ipairs(self.invs) do
+		if inv.name == inv_name then
+			table.remove(self.invs, i)
+			return true
+		end
+	end
+
+	error("Inventory "..inv_name.." is not registered")
+end
+
+function CraftingCluster:itemCount(_)
+	return 0
+end
+
 function CraftingCluster:_addProfileData(profile)
 	for _,recipe in ipairs(profile.recipes) do
-		for _,slot_data in pairs(recipe.slots) do
-			if slot_data.type == SLOT_TYPE.OUTPUT then
-				local item_name = slot_data.item_name
-				self.item_count[item_name] = 0
+		self.recipe_profiles[recipe] = profile
 
-				self.item_recipes[item_name] = self.item_recipes[item_name] or {}
-				self.item_recipes[item_name][#self.item_recipes[item_name]+1] = recipe
+		local done = {}
+		for _,slot_data in pairs(recipe.slots) do
+			if slot_data.type == SLOT_TYPE.OUTPUT and not done[slot_data.item_name] then
+				if not self.item_recipes[slot_data.item_name] then
+					self.item_recipes[slot_data.item_name] = {}
+				end
+
+				table.insert(self.item_recipes[slot_data.item_name], recipe)
+				done[slot_data.item_name] = true
 			end
 		end
-
-		self.recipe_profiles[recipe] = profile
 	end
 end
 
 function CraftingCluster:addProfile(profile)
-	if array_contains(self.profiles, profile) then
+	local profile_names = array_map(self.profiles, function(_profile) return _profile.name end)
+	if array_contains(profile_names, profile.name) then
 		error('Profile'..profile.name..' already present in cluster '..self.name)
 	end
 
@@ -348,8 +435,7 @@ function CraftingCluster:_createInventory(args)
 	}
 end
 
-function CraftingCluster:refresh()
-	StandardCluster.refresh(self)
+function CraftingCluster:_refreshInternals()
 	self.item_recipes = {}
 	self.recipe_profiles = {}
 
@@ -358,7 +444,21 @@ function CraftingCluster:refresh()
 	end
 end
 
-CraftingCluster.catalog = CraftingCluster.refresh
+function CraftingCluster:refresh()
+	for _,inv in ipairs(self.invs) do
+		inv:refresh()
+	end
+
+	self:_refreshInternals()
+end
+
+function CraftingCluster:catalog()
+	for _,inv in ipairs(self.invs) do
+		inv:catalog()
+	end
+
+	self:_refreshInternals()
+end
 
 function CraftingCluster:itemNames()
 	local item_names = {}
@@ -523,16 +623,13 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 		error('No inventories of type '..inv_type..' found')
 	end
 
-	local inputs = table_map(recipe.slots, function(slot) if slot.type == SLOT_TYPE.INPUT then return slot end end)
-	local outputs = table_map(recipe.slots, function(slot) if slot.type == SLOT_TYPE.OUTPUT then return slot end end)
-
 	-- TODO: Right now, you get all of the item outputs before putting a new one. If you put the input item before proceding to the next ones, you can accelerate things quite a bit.
 	-- Executing crafting recipe.
 	for curr_count=1,crafting_count,#invs do
 		local executions = math.min(crafting_count-curr_count+1, #invs)
 
 		-- NOTE: We separate the starting and finishing of craftings to allow it them to run in parallel. Once real parallelization is available, this can be removed.
-		
+
 		-- Starting up craftings.
 		for i=1,executions do
 			local inv = invs[i]
@@ -549,27 +646,19 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 			local inv = invs[i]
 
 			inv:awaitRecipe()
+			inv:finishRecipe()
 		end
-	end
-
-	-- Ending craftings.
-	for i=1,#invs do
-		local inv = invs[i]
-
-		if inv.status == CRAFTING_STATUS.CRAFTING then
-			error('Unexpected status: '..inv.status)
-		end
-
-		inv:finishRecipe()
 	end
 end
 
 function CraftingCluster:waitCrafting(inv, to_slot, item_name, amount)
 	-- TODO: Implement 'AbstractSlot:itemCount(item_name)' (with the 'item_name' argument).
-	while to_slot:itemCount() < amount do
+	while to_slot:itemCount(item_name) < amount do
 		inv:refresh()
 		os.sleep(0)
 	end
+
+	utils.log('Crafted '..amount..' '..item_name)
 end
 
 -- Returning classes.
