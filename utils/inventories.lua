@@ -125,6 +125,8 @@ _M.inventory_size = Memoized:new {
 				end
 			end
 		end
+
+		error('no inventory of type: '..inv_type)
 	end,
 }
 
