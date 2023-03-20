@@ -72,6 +72,5 @@ return {
 	assert_equals = assert_equals,
 	assert_equals_table = assert_equals_table,
 	set_title = set_title,
-	reset = reset,
 	finish = finish,
 }

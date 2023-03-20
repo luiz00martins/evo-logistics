@@ -467,6 +467,16 @@ local function table_map(table, fn)
 end
 _M.table_map = table_map
 
+local function table_map2(table, fn)
+        local new_table = {}
+        for k, v in pairs(table) do
+                local new_k, new_v = fn(k, v)
+                new_table[new_k] = new_v
+        end
+        return new_table
+end
+_M.table_map2 = table_map2
+
 local function reversedipairsiter(t, i)
     i = i - 1
     if i ~= 0 then
