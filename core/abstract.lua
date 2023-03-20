@@ -66,13 +66,15 @@ local function _executeTransactionOperation(args)
 		moved = moved + just_moved
 
 		if just_moved == 0 then
+			-- HACK: We use 'max_tries' and 'current_try' because sometimes the components don't know they are full until they get a 'amount == 0'. That's their signaling that the move failed.
+			-- It would be better to sent the 'intended amount' and the 'moved amount' so they could make the decision on one go. This would allow us to remove the need to retry multiple times.
 			current_try = current_try + 1
 		else
 			current_try = 0
 		end
 
 		if current_try >= max_tries then
-			utils.log('stuck in a loop, aborting')
+			utils.log('WARNING: could not move items, aborting')
 			break
 		end
 

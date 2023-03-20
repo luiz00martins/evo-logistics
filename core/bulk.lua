@@ -627,7 +627,7 @@ function BulkCluster:loadData(data)
 
 			self.item_count[item_name] = self.item_count[item_name] + item_count
 		else
-			utils.log("Inventory "..inv_name.." is no longer present")
+			utils.log("WARNING: Inventory "..inv_name.." is no longer present")
 		end
 	end
 

@@ -600,7 +600,7 @@ function ShapedCluster:loadData(data)
 			if peripheral.isPresent(inv_name) then
 				self:registerInventory{name = inv_name}
 			else
-				utils.log("Inventory "..inv_name.." is no longer present")
+				utils.log("WARNING: Inventory "..inv_name.." is no longer present")
 			end
 		end
 	end

@@ -232,7 +232,6 @@ function ShapelessCraftingInventory:awaitRecipe()
 			os.sleep(0)
 		-- WARNING: We do not check for the amount of items (as there's no way to guarantee it for shapeless slots), only the existence of it.
 		until self:hasItem(slot_data.item_name)
-		utils.log(slot_data.item_name..':'..utils.tostring(self:hasItem(slot_data.item_name)))
 	end
 
 	self.status = CRAFTING_STATUS.CRAFTED
@@ -264,6 +263,7 @@ function ShapedCraftingInventory:_retrieveItems(slots_data)
 
 				local toSlot = self.slots[j]
 				amount_pulled = amount_pulled + transfer(cluster, toSlot, slot_data.item_name, amount_needed-amount_pulled)
+				utils.log('TRACE: Pulled '..utils.tostring(amount_pulled)..' of '..utils.tostring(amount_needed)..' from '..cluster.name..' to slot '..toSlot.index)
 			end
 		end
 
@@ -284,6 +284,7 @@ function ShapelessCraftingInventory:_retrieveItems(slots_data)
 			if amount_pulled < amount_needed and cluster:itemIsAvailable(slot_data.item_name) then
 
 				amount_pulled = amount_pulled + transfer(cluster, self, slot_data.item_name, amount_needed-amount_pulled)
+				utils.log('TRACE: Pulled '..utils.tostring(amount_pulled)..' of '..utils.tostring(amount_needed)..' from '..cluster.name..' to '..self.name)
 			end
 		end
 
@@ -384,7 +385,7 @@ function CraftingCluster:loadData(data)
 		if peripheral.isPresent(inv_name) then
 			self:registerInventory{name = inv_name}
 		else
-			utils.log("Inventory "..inv_name.." is no longer present")
+			utils.log("WARNING: Inventory "..inv_name.." is no longer present")
 		end
 	end
 
@@ -635,6 +636,8 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 		error('No inventories of type '..inv_type..' found')
 	end
 
+	utils.log('INFO: Executing crafting recipe '..recipe.name.. ' x'..crafting_count)
+
 	-- TODO: Right now, you get all of the item outputs before putting a new one. If you put the input item before proceding to the next ones, you can accelerate things quite a bit.
 	-- Executing crafting recipe.
 	for curr_count=1,crafting_count,#invs do
@@ -670,7 +673,7 @@ function CraftingCluster:waitCrafting(inv, to_slot, item_name, amount)
 		os.sleep(0)
 	end
 
-	utils.log('Crafted '..amount..' '..item_name)
+	utils.log('INFO: Crafted '..amount..' '..item_name)
 end
 
 -- Returning classes.
