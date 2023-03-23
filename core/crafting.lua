@@ -6,10 +6,13 @@ local shaped = require('/logos-library.core.shaped')
 local shapeless = require('/logos-library.core.shapeless')
 
 local new_class = require('/logos-library.utils.class').new_class
+local ternary = utils.ternary
 local array_unique = utils.array_unique
 local array_map = utils.array_map
 local table_map = utils.table_map
+local table_map2 = utils.table_map2
 local table_reduce = utils.table_reduce
+local table_keys = utils.table_keys
 local table_values = utils.table_values
 local table_shallowcopy = utils.table_shallowcopy
 local table_contains = utils.table_contains
@@ -59,6 +62,7 @@ function CraftingRecipe:new(args)
 		if not slot_data.item_name then error('no item_name provided in crafting slot') end
 		if not slot_data.amount then error('no amount provided in crafting slot') end
 		if not slot_data.type then error('no type provided in crafting slot') end
+		if args.is_shaped and not slot_data.index then error('no index provided in crafting slot') end
 
 		if not table_contains(table_values(SLOT_TYPE), slot_data.type) then error('invalid crafting slot type provided ('..tostring(slot_data.type)..')') end
 	end
@@ -83,11 +87,20 @@ function CraftingProfile:new(args)
 	-- These arguments must be passed.
 	if args.name == nil then error("parameter missing `name`") end
 	if args.inv_type == nil then error("parameter missing `inv_type`") end
+	if args.whitelist_invs and args.blacklist_invs then error("cannot pass both whitelist and blacklist") end
 
-	local newCraftingProfile =  {
+	if args.whitelist_invs then
+		args.whitelist_invs = table_map2(args.whitelist_invs, function(_, inv_name) return inv_name, true end)
+	elseif args.blacklist_invs then
+		args.blacklist_invs = table_map2(args.blacklist_invs, function(_, inv_name) return inv_name, true end)
+	end
+
+	local newCraftingProfile = {
 		name = args.name,
 		inv_type = args.inv_type,
-		recipes = args.recipes or {}
+		recipes = args.recipes or {},
+		whitelist_invs = args.whitelist_invs,
+		blacklist_invs = args.blacklist_invs,
 	}
 
 	setmetatable(newCraftingProfile, self)
@@ -95,10 +108,22 @@ function CraftingProfile:new(args)
 end
 
 function CraftingProfile:serialize()
+	-- Whitelists and blacklists are formatted as 'list[item_name]' for ease of use. However, they are saved as an array of names, since this is the way that we expose the interface.
+
+	local whitelist_invs
+	local blacklist_invs
+	if self.whitelist_invs then
+		whitelist_invs = table_keys(self.whitelist_invs)
+	elseif self.blacklist_invs then
+		blacklist_invs = table_keys(self.blacklist_invs)
+	end
+
 	local serialized = textutils.serialize{
 		name = self.name,
 		recipes = self.recipes,
 		inv_type = self.inv_type,
+		whitelist_invs = whitelist_invs,
+		blacklist_invs = blacklist_invs,
 	}
 
 	return serialized
@@ -111,6 +136,8 @@ function CraftingProfile:fromSerialized(serialized)
 		name = unserialized.name,
 		recipes = unserialized.recipes,
 		inv_type = unserialized.inv_type,
+		whitelist_invs = unserialized.whitelist_invs,
+		blacklist_invs = unserialized.blacklist_invs,
 	}
 
 	return newCraftingProfile
@@ -160,6 +187,7 @@ function CraftingInventory:new(args)
 	end
 
 	new_inventory.status = CRAFTING_STATUS.IDLE
+	new_inventory.executing_amount = 0
 
 	return new_inventory
 end
@@ -172,7 +200,7 @@ function ShapedCraftingInventory:startRecipe(recipe, storage_clusters)
 	self.executing_recipe = recipe
 	self.storage_clusters = storage_clusters
 
-	local templates = table_map(recipe.slots, function(slot) if slot.type == SLOT_TYPE.TEMPLATE then return slot end end)
+	local templates = array_map(recipe.slots, function(slot) if slot.type == SLOT_TYPE.TEMPLATE then return slot end end)
 
 	self:_retrieveItems(templates)
 
@@ -187,10 +215,17 @@ function ShapedCraftingInventory:executeRecipe()
 		error('Already executing recipe for '..self.executing_recipe.name)
 	end
 
-	local inputs = table_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.INPUT then return slot end end)
-	self:_retrieveItems(inputs)
+	local inputs = array_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.INPUT then return slot end end)
 
-	self.status = CRAFTING_STATUS.CRAFTING
+	if self:_retrieveItems(inputs) then
+		self.status = CRAFTING_STATUS.CRAFTING
+		self.executing_amount = self.executing_amount + 1
+
+		return true
+	else
+		return false
+	end
+
 end
 ShapelessCraftingInventory.executeRecipe = ShapedCraftingInventory.executeRecipe
 
@@ -202,7 +237,7 @@ function ShapedCraftingInventory:awaitRecipe()
 		return
 	end
 
-	local outputs = table_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.OUTPUT then return slot end end)
+	local outputs = array_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.OUTPUT then return slot end end)
 
 	for j,slot_data in pairs(outputs) do
 		local output_slot = self.slots[j]
@@ -224,7 +259,7 @@ function ShapelessCraftingInventory:awaitRecipe()
 		return
 	end
 
-	local outputs = table_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.OUTPUT then return slot end end)
+	local outputs = array_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.OUTPUT then return slot end end)
 
 	for _,slot_data in pairs(outputs) do
 		repeat
@@ -238,72 +273,141 @@ function ShapelessCraftingInventory:awaitRecipe()
 end
 
 function ShapedCraftingInventory:finishRecipe()
-	local outputs = table_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.OUTPUT then return slot end end)
+	local outputs = array_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.OUTPUT then return slot end end)
 	self:_dispatchItems(outputs)
 
-	local templates = table_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.TEMPLATE then return slot end end)
+	local templates = array_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.TEMPLATE then return slot end end)
 	self:_dispatchItems(templates)
+	self.executing_amount = self.executing_amount - 1
 
-	self.status = CRAFTING_STATUS.IDLE
+	if self.executing_amount == 0 then
+		self.status = CRAFTING_STATUS.IDLE
 
-	self.executing_recipe = nil
-	self.storage_clusters = nil
+		self.executing_recipe = nil
+		self.storage_clusters = nil
+	else
+		self.status = CRAFTING_STATUS.CRAFTING
+	end
 end
 ShapelessCraftingInventory.finishRecipe = ShapedCraftingInventory.finishRecipe
 
+-- This function may fail to retrieve all the items. In which case, it will return false. Otherwise, it returns true.
 function ShapedCraftingInventory:_retrieveItems(slots_data)
 	self:refresh()
 
-	for j,slot_data in pairs(slots_data) do
-		local amount_pulled = 0
-		local amount_needed = slot_data.amount
+	local amount_pulled = array_map(slots_data, function() return 0 end)
+	local amount_needed = array_map(slots_data, function(slot_data) return slot_data.amount end)
+
+	-- Pulling the items.
+	for _,slot_data in ipairs(slots_data) do
+		local i = slot_data.index
+		local item_name = slot_data.item_name
 
 		for _,cluster in ipairs(self.storage_clusters) do
-			if amount_pulled < amount_needed and cluster:itemIsAvailable(slot_data.item_name) then
-
-				local toSlot = self.slots[j]
-				amount_pulled = amount_pulled + transfer(cluster, toSlot, slot_data.item_name, amount_needed-amount_pulled)
-				utils.log('TRACE: Pulled '..utils.tostring(amount_pulled)..' of '..utils.tostring(amount_needed)..' from '..cluster.name..' to slot '..toSlot.index)
+			if amount_pulled[i] < amount_needed[i] and cluster:itemIsAvailable(slot_data.item_name) then
+				local toSlot = self.slots[i]
+				amount_pulled[i] = amount_pulled[i] + transfer(cluster, toSlot, item_name, amount_needed[i]-amount_pulled[i])
+				utils.log('TRACE: Pulled '..utils.tostring(amount_pulled[i])..'/'..utils.tostring(amount_needed[i])..' of '..item_name..' from '..cluster.name..' to slot '..toSlot.index)
 			end
 		end
 
-		if amount_pulled < amount_needed then
-			error('Not enough '..slot_data.item_name..' to execute recipe '..self.executing_recipe.name..' ('..amount_pulled..'/'..amount_needed..')')
+		if amount_pulled[i] < amount_needed[i] then
+			-- Failed to retrieve all the items. Break early.
+			break
+		end
+	end
+
+	-- Checking if we have all the items.
+	local failed = false
+	for i,amount in ipairs(amount_needed) do
+		if amount_pulled[i] < amount then
+			utils.log('TRACE: Not enough '..slots_data[i].item_name..' to execute recipe '..self.executing_recipe.name..' ('..amount_pulled[i]..'/'..amount..'). Pulling back...')
+			failed = true
+		end
+	end
+
+	-- Pulling back the items.
+	if failed then
+		local pulled_back = array_map(amount_pulled, function(_) return 0 end)
+
+		for _,cluster in ipairs(self.storage_clusters) do
+			for i,amount in pairs(amount_pulled) do
+				local item_name = slots_data[i].item_name
+
+				if pulled_back[i] < amount then
+					local fromSlot = self.slots[i]
+					pulled_back[i] = pulled_back[i] + transfer(fromSlot, cluster, item_name, amount-pulled_back[i])
+
+					utils.log('TRACE: Pulled back '..utils.tostring(pulled_back[i])..'/'..utils.tostring(amount)..' of '..item_name..' from '..self.name..' to '..cluster.name)
+				end
+			end
 		end
 	end
 end
 
+-- This function may fail to retrieve all the items. In which case, it will return false. Otherwise, it returns true.
 function ShapelessCraftingInventory:_retrieveItems(slots_data)
 	self:refresh()
 
-	for _,slot_data in ipairs(slots_data) do
-		local amount_pulled = 0
-		local amount_needed = slot_data.amount
+	-- NOTE: The order is guaranteed by the API. That is, slots_data[1] will be retrieved first, then slots_data[2] and so on.
+	local amount_pulled = array_map(slots_data, function(_) return 0 end)
+	local amount_needed = array_map(slots_data, function(data) return data.amount end)
 
-		for _,cluster in ipairs(self.storage_clusters) do
-			if amount_pulled < amount_needed and cluster:itemIsAvailable(slot_data.item_name) then
+	-- Pulling the items.
+	for _,cluster in ipairs(self.storage_clusters) do
+		for i,amount in ipairs(amount_needed) do
+			local item_name = slots_data[i].item_name
 
-				amount_pulled = amount_pulled + transfer(cluster, self, slot_data.item_name, amount_needed-amount_pulled)
-				utils.log('TRACE: Pulled '..utils.tostring(amount_pulled)..' of '..utils.tostring(amount_needed)..' from '..cluster.name..' to '..self.name)
+			if amount_pulled[i] < amount and cluster:itemIsAvailable(item_name) then
+				amount_pulled[i] = amount_pulled[i] + transfer(cluster, self, item_name, amount-amount_pulled[i])
+				utils.log('TRACE: Pulled '..utils.tostring(amount_pulled[i])..'/'..utils.tostring(amount_needed[i])..' of '..item_name..' from '..cluster.name..' to '..self.name)
 			end
 		end
+	end
 
-		if amount_pulled < amount_needed then
-			error('Not enough '..slot_data.item_name..' to execute recipe '..self.executing_recipe.name..' ('..amount_pulled..'/'..amount_needed..')')
+	-- Checking if we have all the items.
+	local failed = false
+	for i,amount in ipairs(amount_needed) do
+		if amount_pulled[i] < amount then
+			local item_name = slots_data[i].item_name
+
+			utils.log('TRACE: Not enough '..item_name..' to execute recipe '..self.executing_recipe.name..' ('..amount_pulled[i]..'/'..amount..'). Pulling back...')
+			failed = true
 		end
 	end
+
+	-- Pulling back the items.
+	if failed then
+		local pulled_back = array_map(slots_data, function(_) return 0 end)
+
+		for _,cluster in ipairs(self.storage_clusters) do
+			for i,amount in ipairs(amount_pulled) do
+				if pulled_back[i] < amount then
+					local item_name = slots_data[i].item_name
+
+					pulled_back[i] = pulled_back[i] + transfer(self, cluster, item_name, amount-pulled_back[i])
+
+					utils.log('TRACE: Pulled back '..utils.tostring(pulled_back[i])..'/'..utils.tostring(amount)..' from '..self.name..' to '..cluster.name)
+				end
+			end
+		end
+	end
+
+	return not failed
 end
 
 function ShapedCraftingInventory:_dispatchItems(slots_data)
 	self:refresh()
 
-	for j,_ in pairs(slots_data) do
+	for j,slot_data in pairs(slots_data) do
 		local output_slot = self.slots[j]
 
 		-- Removing crafted items.
 		for _,cluster in ipairs(self.storage_clusters) do
 			if output_slot:hasItem() then
-				transfer(output_slot, cluster)
+				local moved_amount = transfer(output_slot, cluster)
+
+				utils.log('TRACE: Dispatched '..utils.tostring(moved_amount)..'/'..utils.tostring(slot_data.amount)..' of '..slot_data.item_name..' from '..self.name..' to '..cluster.name)
 			else
 				break
 			end
@@ -324,7 +428,10 @@ function ShapelessCraftingInventory:_dispatchItems(slots_data)
 		-- Removing crafted items.
 		for _,cluster in ipairs(self.storage_clusters) do
 			if moved < slot_data.amount then
-				moved = moved + transfer(self, cluster, slot_data.item_name, slot_data.amount-moved)
+				local moved_amount = transfer(self, cluster, slot_data.item_name, slot_data.amount-moved)
+				moved = moved + moved_amount
+
+				utils.log('TRACE: Dispatched '..utils.tostring(moved_amount)..'/'..utils.tostring(slot_data.amount)..' of '..slot_data.item_name..' from '..self.name..' to '..cluster.name)
 			else
 				break
 			end
@@ -630,38 +737,56 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 	local crafting_count = crafting_tree.this.count
 	local profile = self.recipe_profiles[recipe]
 	local inv_type = profile.inv_type
-	local invs = array_filter(self.invs, function(inv) if inventory_type(inv.name) == inv_type then return true end end)
+
+	local invs = self.invs
+	invs = array_filter(invs, function(inv) return inventory_type(inv.name) == inv_type end)
+	if profile.whitelist_invs then
+		invs = array_filter(invs, function(inv) return profile.whitelist_invs[inv.name] end)
+	elseif profile.blacklist_invs then
+		invs = array_filter(invs, function(inv) return not profile.blacklist_invs[inv.name] end)
+	end
 
 	if #invs == 0 then
-		error('No inventories of type '..inv_type..' found')
+		error('No available crafting inventories found in '..self.name..' for crafting '..recipe.name..' in profile '..profile.name)
 	end
+
+	local amount_of_invs_used = math.min(#invs, crafting_count)
+	local inventory_crafting_count = table_map2(invs, function(_, inv) return inv.name, 0 end)
+	local craftings_issued = 0
 
 	utils.log('INFO: Executing crafting recipe '..recipe.name.. ' x'..crafting_count)
 
-	-- TODO: Right now, you get all of the item outputs before putting a new one. If you put the input item before proceding to the next ones, you can accelerate things quite a bit.
 	-- Executing crafting recipe.
-	for curr_count=1,crafting_count,#invs do
-		local executions = math.min(crafting_count-curr_count+1, #invs)
-
+	while craftings_issued < crafting_count do
 		-- NOTE: We separate the starting and finishing of craftings to allow it them to run in parallel. Once real parallelization is available, this can be removed.
 
 		-- Starting up craftings.
-		for i=1,executions do
+		for i = 1, amount_of_invs_used do
 			local inv = invs[i]
-
-			if inv.status == CRAFTING_STATUS.IDLE then
-				inv:startRecipe(recipe, self.storage_clusters)
-			end
-
-			inv:executeRecipe()
+			inv:startRecipe(recipe, self.storage_clusters)
 		end
 
-		-- Awaiting craftings.
-		for i=1,executions do
+		-- Executing craftings.
+		for i = 1, amount_of_invs_used do
 			local inv = invs[i]
 
-			inv:awaitRecipe()
-			inv:finishRecipe()
+			while craftings_issued < crafting_count
+					and inv:executeRecipe(recipe, self.storage_clusters) do
+				inventory_crafting_count[inv.name] = inventory_crafting_count[inv.name] + 1
+				craftings_issued = craftings_issued + 1
+			end
+		end
+
+		-- Finishing craftings.
+		for i = 1, amount_of_invs_used do
+			local inv = invs[i]
+
+			for j = 1, inventory_crafting_count[inv.name] do
+				inv:awaitRecipe()
+				inv:finishRecipe()
+
+				inventory_crafting_count[inv.name] = inventory_crafting_count[inv.name] - 1
+			end
 		end
 	end
 end
