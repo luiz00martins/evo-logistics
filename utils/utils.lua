@@ -361,6 +361,17 @@ local function table_contains(tab, val)
 end
 _M.table_contains = table_contains
 
+local function array_find(arr, fn, start)
+	for i = start or 1, #arr do
+		if fn(arr[i]) then
+			return i, arr[i]
+		end
+	end
+
+	return nil
+end
+_M.array_find = array_find
+
 local function array_unique(arr)
 	local unique = {}
 	local keys = {}
