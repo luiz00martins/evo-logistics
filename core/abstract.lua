@@ -1,6 +1,8 @@
 local utils = require('/logos-library.utils.utils')
 local new_class = require('/logos-library.utils.class').new_class
 
+local DEFAULT_LOG = require('/logos-library.utils.log').empty()
+
 local function _executeTransactionOperation(args)
 	-- Validating arguments.
 	if not args then error('missing args')
@@ -18,6 +20,7 @@ local function _executeTransactionOperation(args)
 	local operation = args.operation
 	local item_name = args.item_name
 	local limit = args.limit or source:itemCount(item_name)
+	local log = args.log or DEFAULT_LOG
 
 	-- Moving items.
 	local execute_operation
@@ -74,7 +77,7 @@ local function _executeTransactionOperation(args)
 		end
 
 		if current_try >= max_tries then
-			utils.log('WARNING: could not move items, aborting')
+			log.warning('could not move items, aborting')
 			break
 		end
 
@@ -147,6 +150,7 @@ function AbstractSlot:new(args)
 		_item = args.item,
 		index = args.index,
 		component_type = 'slot',
+		log = args.log or args.parent.log or DEFAULT_LOG,
 	}
 
 	setmetatable(new_slot, self)
@@ -196,14 +200,14 @@ end
 
 -- Executes when an item is removed to the slot.
 ---@diagnostic disable-next-line: unused-local
-function AbstractSlot:_handleItemAdded(item_name, amount, previous_handlers)
-	error('abstract method "_handleItemAdded" not implemented')
+function AbstractSlot:_itemAddedHandler(item_name, amount, components)
+	error('abstract method "_itemAddedHandler" not implemented')
 end
 
 -- Executes when an item is added to the slot.
 ---@diagnostic disable-next-line: unused-local
-function AbstractSlot:_handleItemRemoved(item_name, amount, previous_handlers)
-	error('abstract method "_handleItemRemoved" not implemented')
+function AbstractSlot:_itemRemovedHandler(item_name, amount, components)
+	error('abstract method "_itemRemovedHandler" not implemented')
 end
 
 AbstractSlot.pushItems = pushItems
@@ -221,6 +225,7 @@ function AbstractInventory:new(args)
 		parent = args.parent,
 		slots = {},
 		component_type = 'inventory',
+		log = args.log or args.parent.log or DEFAULT_LOG,
 	}
 
 	setmetatable(new_inventory, self)
@@ -235,14 +240,14 @@ end
 
 -- Executes when an item is added to the inventory.
 ---@diagnostic disable-next-line: unused-local
-function AbstractInventory:_handleItemAdded(item_name, amount)
-	error('abstract method "_handleItemAdded" not implemented')
+function AbstractInventory:_itemAddedHandler(item_name, amount, components)
+	error('abstract method "_itemAddedHandler" not implemented')
 end
 
 -- Executes when an item is removed from the inventory.
 ---@diagnostic disable-next-line: unused-local
-function AbstractInventory:_handleItemRemoved(item_name, amount)
-	error('abstract method "_handleItemRemoved" not implemented')
+function AbstractInventory:_itemRemovedHandler(item_name, amount, components)
+	error('abstract method "_itemRemovedHandler" not implemented')
 end
 
 AbstractInventory.pushItems = pushItems
@@ -254,6 +259,7 @@ function AbstractCluster:new(args)
 			name = args.name or '',
 			invs = args.invs or {},
 			component_type = 'cluster',
+			log = args.log or DEFAULT_LOG,
 		}
 
 	setmetatable(new_cluster, self)
@@ -319,13 +325,13 @@ end
 -- Executes when an item is added to the cluster.
 ---@diagnostic disable-next-line: unused-local
 function AbstractCluster:_itemAddedHandler(item_name, amount)
-	error('abstract method "_handleItemAdded" not implemented')
+	error('abstract method "_itemAddedHandler" not implemented')
 end
 
 -- Executes when an item is removed from the cluster.
 ---@diagnostic disable-next-line: unused-local
-function AbstractCluster:_itemRemovedHandler(item_name, amount)
-	error('abstract method "_handleItemRemoved" not implemented')
+function AbstractCluster:_itemRemovedHandler(item_name, amount, components)
+	error('abstract method "_itemRemovedHandler" not implemented')
 end
 
 -- Returns whether the inventory is part of the cluster.
