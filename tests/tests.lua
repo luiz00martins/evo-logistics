@@ -1,8 +1,9 @@
-local utils = require('/logos-library.utils.utils')
 local peripheral = require('/logos-library.tests.mocks.peripheral')
 local logistics = require('logistics')
 local memoized = require('memoized')
 local dbg = require('/debugger')
+
+local log = require('/logos-library.utils.log').file('/log.log')
 
 local function test_all()
 	memoized.test_module()
@@ -11,8 +12,8 @@ local function test_all()
 end
 
 local status, error_msg = dbg.call(test_all, function(error_msg)
-	utils.log(error_msg)
-	utils.log(debug.traceback())
+	log.info(error_msg)
+	log.info(debug.traceback())
 	print(error_msg)
 end)
 

@@ -308,7 +308,7 @@ function ShapedCraftingInventory:_retrieveItems(slots_data)
 			if amount_pulled[i] < amount_needed[i] and cluster:itemIsAvailable(slot_data.item_name) then
 				local toSlot = self.slots[i]
 				amount_pulled[i] = amount_pulled[i] + transfer(cluster, toSlot, item_name, amount_needed[i]-amount_pulled[i])
-				utils.log('TRACE: Pulled '..utils.tostring(amount_pulled[i])..'/'..utils.tostring(amount_needed[i])..' of '..item_name..' from '..cluster.name..' to slot '..toSlot.index)
+				self.log.trace('Pulled '..utils.tostring(amount_pulled[i])..'/'..utils.tostring(amount_needed[i])..' of '..item_name..' from '..cluster.name..' to slot '..toSlot.index)
 			end
 		end
 
@@ -322,7 +322,7 @@ function ShapedCraftingInventory:_retrieveItems(slots_data)
 	local failed = false
 	for i,amount in ipairs(amount_needed) do
 		if amount_pulled[i] < amount then
-			utils.log('TRACE: Not enough '..slots_data[i].item_name..' to execute recipe '..self.executing_recipe.name..' ('..amount_pulled[i]..'/'..amount..'). Pulling back...')
+			self.log.trace('Not enough '..slots_data[i].item_name..' to execute recipe '..self.executing_recipe.name..' ('..amount_pulled[i]..'/'..amount..'). Pulling back...')
 			failed = true
 		end
 	end
@@ -339,7 +339,7 @@ function ShapedCraftingInventory:_retrieveItems(slots_data)
 					local fromSlot = self.slots[i]
 					pulled_back[i] = pulled_back[i] + transfer(fromSlot, cluster, item_name, amount-pulled_back[i])
 
-					utils.log('TRACE: Pulled back '..utils.tostring(pulled_back[i])..'/'..utils.tostring(amount)..' of '..item_name..' from '..self.name..' to '..cluster.name)
+					self.log.trace('Pulled back '..utils.tostring(pulled_back[i])..'/'..utils.tostring(amount)..' of '..item_name..' from '..self.name..' to '..cluster.name)
 				end
 			end
 		end
@@ -361,7 +361,7 @@ function ShapelessCraftingInventory:_retrieveItems(slots_data)
 
 			if amount_pulled[i] < amount and cluster:itemIsAvailable(item_name) then
 				amount_pulled[i] = amount_pulled[i] + transfer(cluster, self, item_name, amount-amount_pulled[i])
-				utils.log('TRACE: Pulled '..utils.tostring(amount_pulled[i])..'/'..utils.tostring(amount_needed[i])..' of '..item_name..' from '..cluster.name..' to '..self.name)
+				self.log.trace('Pulled '..utils.tostring(amount_pulled[i])..'/'..utils.tostring(amount_needed[i])..' of '..item_name..' from '..cluster.name..' to '..self.name)
 			end
 		end
 	end
@@ -372,7 +372,7 @@ function ShapelessCraftingInventory:_retrieveItems(slots_data)
 		if amount_pulled[i] < amount then
 			local item_name = slots_data[i].item_name
 
-			utils.log('TRACE: Not enough '..item_name..' to execute recipe '..self.executing_recipe.name..' ('..amount_pulled[i]..'/'..amount..'). Pulling back...')
+			self.log.trace('Not enough '..item_name..' to execute recipe '..self.executing_recipe.name..' ('..amount_pulled[i]..'/'..amount..'). Pulling back...')
 			failed = true
 		end
 	end
@@ -388,7 +388,7 @@ function ShapelessCraftingInventory:_retrieveItems(slots_data)
 
 					pulled_back[i] = pulled_back[i] + transfer(self, cluster, item_name, amount-pulled_back[i])
 
-					utils.log('TRACE: Pulled back '..utils.tostring(pulled_back[i])..'/'..utils.tostring(amount)..' from '..self.name..' to '..cluster.name)
+					self.log.trace('Pulled back '..utils.tostring(pulled_back[i])..'/'..utils.tostring(amount)..' from '..self.name..' to '..cluster.name)
 				end
 			end
 		end
@@ -408,7 +408,7 @@ function ShapedCraftingInventory:_dispatchItems(slots_data)
 			if output_slot:hasItem() then
 				local moved_amount = transfer(output_slot, cluster)
 
-				utils.log('TRACE: Dispatched '..utils.tostring(moved_amount)..'/'..utils.tostring(slot_data.amount)..' of '..slot_data.item_name..' from '..self.name..' to '..cluster.name)
+				self.log.trace('Dispatched '..utils.tostring(moved_amount)..'/'..utils.tostring(slot_data.amount)..' of '..slot_data.item_name..' from '..self.name..' to '..cluster.name)
 			else
 				break
 			end
@@ -432,7 +432,7 @@ function ShapelessCraftingInventory:_dispatchItems(slots_data)
 				local moved_amount = transfer(self, cluster, slot_data.item_name, slot_data.amount-moved)
 				moved = moved + moved_amount
 
-				utils.log('TRACE: Dispatched '..utils.tostring(moved_amount)..'/'..utils.tostring(slot_data.amount)..' of '..slot_data.item_name..' from '..self.name..' to '..cluster.name)
+				self.log.trace('Dispatched '..utils.tostring(moved_amount)..'/'..utils.tostring(slot_data.amount)..' of '..slot_data.item_name..' from '..self.name..' to '..cluster.name)
 			else
 				break
 			end
@@ -499,7 +499,7 @@ function CraftingCluster:loadData(data)
 				name = inv_name,
 			}
 		else
-			utils.log("WARNING: Inventory "..inv_name.." is no longer present")
+			self.log.warning("Inventory "..inv_name.." is no longer present")
 		end
 	end
 
@@ -796,7 +796,7 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 	local inventory_crafting_count = table_map2(invs, function(_, inv) return inv.name, 0 end)
 	local craftings_issued = 0
 
-	utils.log('INFO: Executing crafting recipe '..recipe.name.. ' x'..crafting_count)
+	self.log.info('Executing crafting recipe '..recipe.name.. ' x'..crafting_count)
 
 	-- Executing crafting recipe.
 	while craftings_issued < crafting_count do
@@ -840,7 +840,7 @@ function CraftingCluster:waitCrafting(inv, to_slot, item_name, amount)
 		os.sleep(0)
 	end
 
-	utils.log('INFO: Crafted '..amount..' '..item_name)
+	self.log.info('Crafted '..amount..' '..item_name)
 end
 
 -- Returning classes.

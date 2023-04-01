@@ -1,5 +1,7 @@
 local utils = require('/logos-library.utils.utils')
 
+local log = require('/logos-library.utils.log').file('/log.log')
+
 local test_title = ''
 local test_count = 0
 local function print_test_status()
@@ -32,8 +34,8 @@ local function _bad_equals_path(v1, v2)
 	io.stdout:write('\n')
 	local msg = "Assertion failed: Got '"..utils.tostring(v1).."', expected '"..utils.tostring(v2).."'"
 	print(msg)
-	utils.log(msg)
-	utils.log(debug.traceback())
+	log.info(msg)
+	log.info(debug.traceback())
 	error()
 end
 
@@ -62,7 +64,7 @@ local function custom_assert(value)
 	else
 		io.stdout:write('\n')
 		print('Assertion failed')
-		utils.log(debug.traceback())
+		log.info(debug.traceback())
 		error()
 	end
 end

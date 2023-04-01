@@ -356,7 +356,7 @@ function BarrelCluster:loadData(data)
 			self.invs_with_item[item_name] = self.invs_with_item[item_name] or {}
 			table.insert(self.invs_with_item[item_name], inv)
 		else
-			utils.log("WARNING: Inventory "..inv_name.." is no longer present")
+			self.log.warning("Inventory "..inv_name.." is no longer present")
 		end
 	end
 
