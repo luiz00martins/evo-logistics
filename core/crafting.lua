@@ -461,6 +461,9 @@ end
 
 CraftingCluster._getPriority = _getPriority
 
+function CraftingCluster:_itemAddedHandler(_, _, _) end
+function CraftingCluster:_itemRemovedHandler(_, _, _) end
+
 function CraftingCluster:dataPath()
 	return "/logistics_data/"..self.name..".data"
 end
@@ -491,7 +494,10 @@ function CraftingCluster:loadData(data)
 	self.invs	= {}
 	for _,inv_name in ipairs(data.inv_names) do
 		if peripheral.isPresent(inv_name) then
-			self:registerInventory{name = inv_name}
+			self:registerInventory{
+				parent = self,
+				name = inv_name,
+			}
 		else
 			utils.log("WARNING: Inventory "..inv_name.." is no longer present")
 		end
