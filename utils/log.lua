@@ -1,88 +1,107 @@
---- log.lua
+--- log.lua (modified)
 --
 -- Copyright (c) 2016 rxi
 --
 -- This library is free software; you can redistribute it and/or modify it
 -- under the terms of the MIT license. See LICENSE for details.
 
-local log = { _version = "0.1.0" }
+local VERSION = "0.1.0"
 
-log.usecolor = true
-log.outfile = nil
-log.level = "trace"
-
-
-local modes = {
-  { name = "trace", color = "\27[34m", },
-  { name = "debug", color = "\27[36m", },
-  { name = "info",  color = "\27[32m", },
-  { name = "warn",  color = "\27[33m", },
-  { name = "error", color = "\27[31m", },
-  { name = "fatal", color = "\27[35m", },
+local MODES = {
+	{ name = "trace",   pretty_name = "TRACE", color = colors.blue, },
+	{ name = "debug",   pretty_name = "DEBUG", color = colors.blue, },
+	{ name = "info",    pretty_name = "INFO",  color = colors.white, },
+	{ name = "warning", pretty_name = "WARN",  color = colors.orange, },
+	{ name = "error",   pretty_name = "ERROR", color = colors.red, },
+	{ name = "fatal",   pretty_name = "FATAL", color = colors.red, },
 }
 
-
-local levels = {}
-for i, v in ipairs(modes) do
-  levels[v.name] = i
+local LEVELS = {}
+for i, v in ipairs(MODES) do
+	LEVELS[v.name] = i
 end
 
+local _M = {}
 
-local round = function(x, increment)
-  increment = increment or 1
-  x = x / increment
-  return (x > 0 and math.floor(x + .5) or math.ceil(x - .5)) * increment
+function _M.print()
+	local log = { _version = VERSION }
+
+	log.usecolor = false
+	log.level = "trace"
+
+	local tostring = require('utils').tostring
+
+	for i, x in ipairs(MODES) do
+		local name = x.pretty_name or x.name
+		log[x.name] = function(...)
+			-- Return early if we're below the log level
+			if i < LEVELS[log.level] then
+				return
+			end
+
+			local msg = tostring(...)
+			local info = debug.getinfo(2, "Sl")
+			local lineinfo = info.short_src .. ":" .. info.currentline
+
+			-- Print
+			local str = string.format("[%-6s%s] %s: %s\n",
+																name, os.date("%d/%m/%Y %H:%M:%S"), lineinfo, msg)
+			local old_color = term.getTextColor()
+			term.setTextColor(x.color)
+			print(str)
+			term.setTextColor(old_color)
+		end
+	end
+
+	return log
 end
 
+function _M.file(outfile)
+	local log = { _version = VERSION }
 
-local _tostring = tostring
+	log.usecolor = false
+	log.outfile = outfile
+	log.level = "trace"
 
-local tostring = function(...)
-  local t = {}
-  for i = 1, select('#', ...) do
-    local x = select(i, ...)
-    if type(x) == "number" then
-      x = round(x, .01)
-    end
-    t[#t + 1] = _tostring(x)
-  end
-  return table.concat(t, " ")
+	local tostring = require('utils').tostring
+
+	for i, x in ipairs(MODES) do
+		local name = x.pretty_name or x.name
+		log[x.name] = function(...)
+			-- Return early if we're below the log level
+			if i < LEVELS[log.level] then
+				return
+			end
+
+			local msg = tostring(...)
+			local info = debug.getinfo(2, "Sl")
+			local lineinfo = info.short_src .. ":" .. info.currentline
+
+			-- Output to log file
+			if log.outfile then
+				local file = fs.open(log.outfile, "a")
+				local str = string.format("[%-6s%s] %s: %s\n",
+																	name, os.date("%d/%m/%Y %H:%M:%S"), lineinfo, msg)
+				file.write(str)
+				file.flush()
+				file.close()
+			else
+				error("log.outfile is nil")
+			end
+		end
+	end
+
+	return log
 end
 
+function _M.empty()
+	local log = { _version = VERSION}
 
-for i, x in ipairs(modes) do
-  local nameupper = x.name:upper()
-  log[x.name] = function(...)
-    
-    -- Return early if we're below the log level
-    if i < levels[log.level] then
-      return
-    end
+	for i, x in ipairs(MODES) do
+		log[x.name] = function() end
+	end
 
-    local msg = tostring(...)
-    local info = debug.getinfo(2, "Sl")
-    local lineinfo = info.short_src .. ":" .. info.currentline
-
-    -- Output to console
-    print(string.format("%s[%-6s%s]%s %s: %s",
-                        log.usecolor and x.color or "",
-                        nameupper,
-                        os.date("%H:%M:%S"),
-                        log.usecolor and "\27[0m" or "",
-                        lineinfo,
-                        msg))
-
-    -- Output to log file
-    if log.outfile then
-      local fp = io.open(log.outfile, "a")
-      local str = string.format("[%-6s%s] %s: %s\n",
-                                nameupper, os.date(), lineinfo, msg)
-      fp:write(str)
-      fp:close()
-    end
-
-  end
+	return log
 end
 
-
-return log
+return _M
