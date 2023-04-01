@@ -214,6 +214,7 @@ function AbstractInventory:new(args)
 	if not args then error("missing args") end
 
 	if args.name == nil then error("missing parameter `name`") end
+	if args.parent == nil then error("missing parameter `parent`") end
 
 	local new_inventory = {
 		name = args.name,
