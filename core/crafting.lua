@@ -308,7 +308,7 @@ function ShapedCraftingInventory:_retrieveItems(slots_data)
 			if amount_pulled[i] < amount_needed[i] and cluster:itemIsAvailable(slot_data.item_name) then
 				local toSlot = self.slots[i]
 				amount_pulled[i] = amount_pulled[i] + transfer(cluster, toSlot, item_name, amount_needed[i]-amount_pulled[i])
-				self.log.trace('Pulled '..utils.tostring(amount_pulled[i])..'/'..utils.tostring(amount_needed[i])..' of '..item_name..' from '..cluster.name..' to slot '..toSlot.index)
+				self.log.trace('Pulled '..utils.tostring(amount_pulled[i])..'/'..utils.tostring(amount_needed[i])..' of '..item_name..' from '..cluster.name..' to slot '..toSlot.index..' of '..self.name)
 			end
 		end
 
@@ -344,6 +344,8 @@ function ShapedCraftingInventory:_retrieveItems(slots_data)
 			end
 		end
 	end
+
+	return not failed
 end
 
 -- This function may fail to retrieve all the items. In which case, it will return false. Otherwise, it returns true.
@@ -401,20 +403,22 @@ function ShapedCraftingInventory:_dispatchItems(slots_data)
 	self:refresh()
 
 	for j,slot_data in pairs(slots_data) do
+		local full_amount_moved = 0
 		local output_slot = self.slots[j]
 
 		-- Removing crafted items.
 		for _,cluster in ipairs(self.storage_clusters) do
-			if output_slot:hasItem() then
-				local moved_amount = transfer(output_slot, cluster)
+			if full_amount_moved ~= slot_data.amount then
+				local moved_amount = transfer(output_slot, cluster, slot_data.item_name, slot_data.amount - full_amount_moved)
 
 				self.log.trace('Dispatched '..utils.tostring(moved_amount)..'/'..utils.tostring(slot_data.amount)..' of '..slot_data.item_name..' from '..self.name..' to '..cluster.name)
+				full_amount_moved = full_amount_moved + moved_amount
 			else
 				break
 			end
 		end
 
-		if output_slot:hasItem() then
+		if full_amount_moved ~= slot_data.amount then
 			error('Could not export item '..output_slot:itemName())
 		end
 	end
@@ -824,12 +828,16 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 		for i = 1, amount_of_invs_used do
 			local inv = invs[i]
 
+			self.log.info('Finishing crafting recipe '..recipe.name.. ' x'..crafting_count)
+
 			for j = 1, inventory_crafting_count[inv.name] do
 				inv:awaitRecipe()
 				inv:finishRecipe()
 
 				inventory_crafting_count[inv.name] = inventory_crafting_count[inv.name] - 1
 			end
+
+			self.log.info('Finished crafting recipe '..recipe.name.. ' x'..crafting_count)
 		end
 	end
 end
