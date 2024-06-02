@@ -104,7 +104,8 @@ local function pullItems(self, args)
 		target = self,
 		operation = 'pull',
 		item_name = args.item_name,
-		limit = args.limit
+		limit = args.limit,
+		log = self.log,
 	}
 end
 
@@ -114,7 +115,8 @@ local function pushItems(self, args)
 		target = args.target,
 		operation = 'push',
 		item_name = args.item_name,
-		limit = args.limit
+		limit = args.limit,
+		log = self.log,
 	}
 end
 
