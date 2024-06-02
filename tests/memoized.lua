@@ -1,48 +1,47 @@
-local test_utils = require('/logos-library.tests.utils')
-local utils = require('/logos-library.utils.utils')
+local ut = require("cc-ut")
+
+local describe = ut.describe
 
 local Memoized = require('/logos-library.utils.memoized').Memoized
-local custom_assert = test_utils.custom_assert
-local assert_equals_table = test_utils.assert_equals_table
-local assert_equals = test_utils.assert_equals
 
-local function test_module()
-	print('Testing module: memoized')
+local test_module = function()
+  describe('Memoized Module', function(test)
+    test("Testing return", function(expect)
+      local fn1 = Memoized:new {
+        name = 'fn1',
+        fn = function(v)
+          return 'test'..v
+        end,
+      }
 
-	test_utils.set_title('Testing return')
-	local fn1 = Memoized:new {
-		name = 'fn1',
-		fn = function(v)
-			return 'test'..v
-		end,
-	}
+      expect(fn1('')).toBe('test')
+      expect(fn1(' abc')).toBe('test abc')
+    end)
 
-	assert_equals(fn1(''), 'test')
-	assert_equals(fn1(' abc'), 'test abc')
+    test("Testing autosave", function(expect)
+      local path = '/logos-library/data/memoized/test_autosave.cache'
+      local test_autosave = Memoized:new {
+        name = 'test_autosave',
+        auto_save = true,
+        path = path,
+        fn = function(v)
+          return 'test'..v
+        end,
+      }
 
-	test_utils.set_title('Testing autosave')
-	local path = '/logos-library/data/memoized/test_autosave.cache'
-	local test_autosave = Memoized:new {
-		name = 'test_autosave',
-		auto_save = true,
-		path = path,
-		fn = function(v)
-			return 'test'..v
-		end,
-	}
+      expect(test_autosave('')).toBe('test')
+      expect(test_autosave(' abc')).toBe('test abc')
+      expect(test_autosave(' 123')).toBe('test 123')
 
-	assert_equals(test_autosave(''), 'test')
-	assert_equals(test_autosave(' abc'), 'test abc')
-	assert_equals(test_autosave(' 123'), 'test 123')
-	local old_cache = test_autosave.cache
-	local file = fs.open(path, 'r')
-	local data = file.readAll()
-	file.close()
-	fs.delete(path)
-	local new_cache = textutils.unserialize(data)
-	assert_equals_table(old_cache, new_cache)
-
-	test_utils.finish()
+      local old_cache = test_autosave.cache
+      local file = fs.open(path, 'r')
+      local data = file.readAll()
+      file.close()
+      fs.delete(path)
+      local new_cache = textutils.unserialize(data)
+      expect(old_cache).toEqual(new_cache)
+    end)
+  end)
 end
 
 return {
