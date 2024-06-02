@@ -63,7 +63,7 @@ function _M.file(outfile)
 	log.outfile = outfile
 	log.level = "trace"
 
-	local tostring = require('utils').tostring
+	local tostring = require('/logos-library.utils.utils').tostring
 
 	for i, x in ipairs(MODES) do
 		local name = x.pretty_name or x.name
