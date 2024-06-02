@@ -507,6 +507,7 @@ function CraftingCluster:loadData(data)
 end
 
 function CraftingCluster:registerInventory(args)
+	args.parent = self
 	local inv = CraftingInventory:new(args)
 
 	table.insert(self.invs, inv)
