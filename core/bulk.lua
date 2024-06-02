@@ -294,6 +294,7 @@ function BulkInv.IO_SLOTS:refresh()
 		self.count = 0
 	else
 		self.item_name = item.name
+		self.count = item.count
 	end
 end
 
