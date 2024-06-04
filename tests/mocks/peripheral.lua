@@ -15,6 +15,7 @@ local original_peripheral = peripheral
 local peripheral = {
 	custom = {},
 	_inventories = {},
+	tick_frozen = false,
 }
 local inventories = peripheral._inventories
 local modem = {
@@ -122,6 +123,9 @@ inventory_api_functions.pushItems = function(output_inv_name, input_inv_name, ou
 	-- Updating inventories.
 	output_inv:update()
 	input_inv:update()
+
+	output_inv.was_used = true
+	input_inv.was_used = true
 
 	return moved_amount
 end
@@ -336,6 +340,9 @@ inventory_api_functions.pushItem = function(output_inv_name, input_inv_name, ite
 	output_inv:update()
 	input_inv:update()
 
+	output_inv.was_used = true
+	input_inv.was_used = true
+
 	return moved
 end
 
@@ -450,6 +457,7 @@ peripheral.custom.add_inventory = function(inv_name)
 			clear = function(self) self.list = {} end,
 			methods = shaped_inventory_methods,
 			list = {},
+			was_used = false,
 		}
 	elseif inv_type == 'techreborn:storage_unit' then
 		inv = {
@@ -520,7 +528,8 @@ peripheral.custom.add_inventory = function(inv_name)
 				self.list = {}
 				self.data.item = nil
 			end,
-			list = {}
+			list = {},
+			was_used = false,
 		}
 	elseif inv_type == 'techreborn:auto_crafting_table' then
 		inv = {
@@ -540,6 +549,7 @@ peripheral.custom.add_inventory = function(inv_name)
 			},
 			update = run_recipes,
 			list = {},
+			was_used = false,
 		}
 	elseif inv_type == 'techreborn:assembly_machine' then
 		inv = {
@@ -560,6 +570,7 @@ peripheral.custom.add_inventory = function(inv_name)
 				},
 			update = run_recipes,
 			list = {},
+			was_used = false,
 		}
 	elseif inv_type == 'modern_industrialization:bronze_barrel' then
 		inv = {
@@ -572,6 +583,7 @@ peripheral.custom.add_inventory = function(inv_name)
 			print = default_print, -- FIXME: Probably won't work.
 			update = function() end,
 			items = {},
+			was_used = false,
 		}
 	elseif inv_type == 'modern_industrialization:steel_barrel' then
 		inv = {
@@ -584,6 +596,7 @@ peripheral.custom.add_inventory = function(inv_name)
 			print = default_print, -- FIXME: Probably won't work.
 			update = function() end,
 			items = {},
+			was_used = false,
 		}
 	else
 		error('Inventory type "'..inv_type..'" not recognized')
@@ -679,6 +692,10 @@ peripheral.custom.consume_item = function(inv_name, inv_slot, item_count)
 	end
 end
 
+peripheral.custom.tick_freeze = function(val)
+	peripheral.tick_frozen = val
+end
+
 peripheral.custom.tick_inventory = function(inv_name)
 	local inv = inventories[inv_name]
 
@@ -686,7 +703,21 @@ peripheral.custom.tick_inventory = function(inv_name)
 		error('Inventory '..inv_name..' not found')
 	end
 
-	return inv:update()
+	if peripheral.tick_frozen then
+		return
+	else
+		return inv:update()
+	end
+end
+
+peripheral.custom.was_used = function(inv_name)
+	local inv = inventories[inv_name]
+
+	if not inv then
+		error('Inventory '..inv_name..' not found')
+	end
+
+	return inv.was_used
 end
 
 peripheral.custom.print = function(inv_name, print_fn)

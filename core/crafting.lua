@@ -17,6 +17,7 @@ local table_values = utils.table_values
 local table_shallowcopy = utils.table_shallowcopy
 local table_contains = utils.table_contains
 local array_contains = utils.array_contains
+local array_slice = utils.array_slice
 local table_filter = utils.table_filter
 local array_filter = utils.array_filter
 local inventory_type = inv_utils.inventory_type
@@ -240,8 +241,8 @@ function ShapedCraftingInventory:awaitRecipe()
 
 	local outputs = array_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.OUTPUT then return slot end end)
 
-	for j,slot_data in pairs(outputs) do
-		local output_slot = self.slots[j]
+	for _,slot_data in pairs(outputs) do
+		local output_slot = self.slots[slot_data.index]
 
 		repeat
 			self:refresh()
@@ -269,6 +270,7 @@ function ShapelessCraftingInventory:awaitRecipe()
 		-- WARNING: We do not check for the amount of items (as there's no way to guarantee it for shapeless slots), only the existence of it.
 		until self:hasItem(slot_data.item_name)
 	end
+
 
 	self.status = CRAFTING_STATUS.CRAFTED
 end
@@ -300,13 +302,12 @@ function ShapedCraftingInventory:_retrieveItems(slots_data)
 	local amount_needed = array_map(slots_data, function(slot_data) return slot_data.amount end)
 
 	-- Pulling the items.
-	for _,slot_data in ipairs(slots_data) do
-		local i = slot_data.index
+	for i,slot_data in ipairs(slots_data) do
 		local item_name = slot_data.item_name
 
 		for _,cluster in ipairs(self.storage_clusters) do
 			if amount_pulled[i] < amount_needed[i] and cluster:itemIsAvailable(slot_data.item_name) then
-				local toSlot = self.slots[i]
+				local toSlot = self.slots[slot_data.index]
 				amount_pulled[i] = amount_pulled[i] + transfer(cluster, toSlot, item_name, amount_needed[i]-amount_pulled[i])
 				self.log.trace('Pulled '..utils.tostring(amount_pulled[i])..'/'..utils.tostring(amount_needed[i])..' of '..item_name..' from '..cluster.name..' to slot '..toSlot.index..' of '..self.name)
 			end
@@ -404,7 +405,7 @@ function ShapedCraftingInventory:_dispatchItems(slots_data)
 
 	for j,slot_data in pairs(slots_data) do
 		local full_amount_moved = 0
-		local output_slot = self.slots[j]
+		local output_slot = self.slots[slot_data.index]
 
 		-- Removing crafted items.
 		for _,cluster in ipairs(self.storage_clusters) do
@@ -457,7 +458,6 @@ function CraftingCluster:new(args)
 	new_cluster.storage_clusters = args.storage_clusters
 	new_cluster.profiles = {}
 	new_cluster.item_recipes = {}
-	new_cluster.recipe_profiles = {}
 
 	setmetatable(new_cluster, CraftingCluster)
 	return new_cluster
@@ -548,8 +548,9 @@ end
 
 function CraftingCluster:_addProfileData(profile)
 	for _,recipe in ipairs(profile.recipes) do
-		self.recipe_profiles[recipe.name] = profile
-		self:_addRecipeData(recipe)
+		local extended_recipe = table_shallowcopy(recipe)
+		extended_recipe.profile_name = profile.name
+		self:_addRecipeData(extended_recipe)
 	end
 end
 
@@ -581,7 +582,6 @@ end
 function CraftingCluster:_removeProfileData(profile)
 	for _,recipe in ipairs(profile.recipes) do
 		self:_removeRecipeData(recipe)
-		self.recipe_profiles[recipe.name] = nil
 	end
 end
 
@@ -604,7 +604,6 @@ end
 
 function CraftingCluster:_refreshInternals()
 	self.item_recipes = {}
-	self.recipe_profiles = {}
 
 	for _,profile in ipairs(self.profiles) do
 		self:_addProfileData(profile)
@@ -782,7 +781,14 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 
 	local recipe = crafting_tree.this.recipe
 	local crafting_count = crafting_tree.this.count
-	local profile = self.recipe_profiles[recipe.name]
+	local profile_name = recipe.profile_name
+
+	local _, profile = array_find(self.profiles, function(_profile) return _profile.name == profile_name end)
+
+	if not profile then
+		error('Profile '..profile_name..' not found in cluster '..self.name)
+	end
+
 	local inv_type = profile.inv_type
 
 	local invs = self.invs
@@ -805,8 +811,6 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 
 	-- Executing crafting recipe.
 	while craftings_issued < crafting_count do
-		-- NOTE: We separate the starting and finishing of craftings to allow it them to run in parallel. Once real parallelization is available, this can be removed.
-
 		-- Starting up craftings.
 		for i = 1, amount_of_invs_used do
 			local inv = invs[i]
@@ -814,14 +818,23 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 		end
 
 		-- Executing craftings.
-		for i = 1, amount_of_invs_used do
-			local inv = invs[i]
-
-			while craftings_issued < crafting_count
-					and inv:executeRecipe(recipe, self.storage_clusters) do
-				inventory_crafting_count[inv.name] = inventory_crafting_count[inv.name] + 1
-				craftings_issued = craftings_issued + 1
+		local crafting_complete = false
+		while not crafting_complete do
+			crafting_complete = true
+			local function executeCraftingForInventory(inv)
+				if craftings_issued < crafting_count and inv:executeRecipe(recipe, self.storage_clusters) then
+					inventory_crafting_count[inv.name] = inventory_crafting_count[inv.name] + 1
+					craftings_issued = craftings_issued + 1
+					crafting_complete = false
+				end
 			end
+
+			-- NOTE: This slice decides the 
+			local active_invs = array_slice(invs, 1, math.min(#invs, crafting_count - craftings_issued))
+
+			parallel.waitForAll(
+				table.unpack(array_map(active_invs, function(inv) return function() executeCraftingForInventory(inv) end end))
+			)
 		end
 
 		-- Finishing craftings.

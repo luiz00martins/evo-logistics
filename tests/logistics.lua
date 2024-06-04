@@ -218,33 +218,54 @@ local function test_module()
 		end)
 	end)
 
-	test('crafting', function(expect)
-		reset()
-		local missing_items = crafting_cluster:calculateMissingItems('techreborn:advanced_circuit', 1)
-		local missing_item_names = array_map(missing_items, function(item) return item.name end)
-		expect(array_contains(missing_item_names, 'techreborn:silicon_plate')).toEqual(true)
-		expect(array_contains(missing_item_names, 'techreborn:electrum_plate')).toEqual(true)
-		peripheral.custom.produce_item('minecraft:chest_0', 1, 'techreborn:silicon_plate', 4)
-		peripheral.custom.produce_item('minecraft:chest_0', 2, 'techreborn:electrum_plate', 8)
-		io_cluster:refresh()
-		expect(transfer(io_cluster, main_cluster)).toEqual(12)
-		crafting_cluster:executeCraftingTree(
-			crafting_cluster:createCraftingTree('techreborn:advanced_circuit', 4)
-		)
-		expect(main_cluster:itemCount('techreborn:advanced_circuit')).toEqual(4)
+	describe('crafting', function(test)
+		test('normal', function(expect)
+			reset()
+			local missing_items = crafting_cluster:calculateMissingItems('techreborn:advanced_circuit', 1)
+			local missing_item_names = array_map(missing_items, function(item) return item.name end)
+			expect(array_contains(missing_item_names, 'techreborn:silicon_plate')).toEqual(true)
+			expect(array_contains(missing_item_names, 'techreborn:electrum_plate')).toEqual(true)
+			peripheral.custom.produce_item('minecraft:chest_0', 1, 'techreborn:silicon_plate', 4)
+			peripheral.custom.produce_item('minecraft:chest_0', 2, 'techreborn:electrum_plate', 8)
+			io_cluster:refresh()
+			expect(transfer(io_cluster, main_cluster)).toEqual(12)
+			crafting_cluster:executeCraftingTree(
+				crafting_cluster:createCraftingTree('techreborn:advanced_circuit', 4)
+			)
+			expect(main_cluster:itemCount('techreborn:advanced_circuit')).toEqual(4)
+		end)
+
+		test('multiple stations', function(expect)
+			reset()
+			peripheral.custom.add_inventory('techreborn:assembly_machine_1')
+			crafting_cluster:registerInventory{name = 'techreborn:assembly_machine_1'}
+			peripheral.custom.produce_item('minecraft:barrel_0', 1, 'techreborn:silicon_plate', 4)
+			peripheral.custom.produce_item('minecraft:barrel_0', 2, 'techreborn:electrum_plate', 8)
+			main_cluster:refresh()
+			expect(peripheral.custom.was_used('techreborn:assembly_machine_0')).toEqual(false)
+			expect(peripheral.custom.was_used('techreborn:assembly_machine_1')).toEqual(false)
+			crafting_cluster:executeCraftingTree(
+				crafting_cluster:createCraftingTree('techreborn:advanced_circuit', 2)
+			)
+			expect(peripheral.custom.was_used('techreborn:assembly_machine_0')).toEqual(true)
+			expect(peripheral.custom.was_used('techreborn:assembly_machine_1')).toEqual(true)
+		end)
 	end)
 
-	test('stacking', function(expect)
-		-- The items are added one by one...
-		reset()
-		for _=1,20 do
-			peripheral.custom.produce_item('minecraft:chest_0', 1, 'minecraft:stick')
-			io_cluster:refresh()
-			transfer(io_cluster, main_cluster)
-		end
-		-- ...but they should stack inside the inventory.
-		expect(peripheral.call('minecraft:barrel_0', 'list')[1].count).toEqual(20)
+	describe('corner cases', function(test)
+		test('stacking', function(expect)
+			-- The items are added one by one...
+			reset()
+			for _=1,20 do
+				peripheral.custom.produce_item('minecraft:chest_0', 1, 'minecraft:stick')
+				io_cluster:refresh()
+				transfer(io_cluster, main_cluster)
+			end
+			-- ...but they should stack inside the inventory.
+			expect(peripheral.call('minecraft:barrel_0', 'list')[1].count).toEqual(20)
+		end)
 	end)
+
 
 	-- test_utils.set_title('Testing interface active import')
 	-- reset()

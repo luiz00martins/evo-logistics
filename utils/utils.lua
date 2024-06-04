@@ -289,6 +289,15 @@ local function array_contains(arr, val)
 end
 _M.array_contains = array_contains
 
+local function array_slice(arr, start, _end)
+	local sliced = {}
+	for i = start, _end do
+		sliced[#sliced+1] = arr[i]
+	end
+	return sliced
+end
+_M.array_slice = array_slice
+
 
 local function _format_key(k)
 	if type(k) == 'number' or type(k) == 'boolean' then
