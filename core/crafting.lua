@@ -7,6 +7,7 @@ local shapeless = require('/logos-library.core.shapeless')
 
 local new_class = require('/logos-library.utils.class').new_class
 local array_find = utils.array_find
+local table_find = utils.table_find
 local array_unique = utils.array_unique
 local array_map = utils.array_map
 local table_map = utils.table_map
@@ -20,6 +21,7 @@ local array_contains = utils.array_contains
 local array_slice = utils.array_slice
 local table_filter = utils.table_filter
 local array_filter = utils.array_filter
+local uuid = utils.uuid
 local inventory_type = inv_utils.inventory_type
 local is_shaped = inv_utils.is_shaped
 
@@ -72,6 +74,7 @@ function CraftingRecipe:new(args)
 	if not _check_output(args.slots) then error('no output slots found in recipe '..args.name) end
 
 	local new_recipe = {
+		id = args.id or uuid(),
 		name = args.name,
 		is_shaped = args.is_shaped,
 		slots = args.slots,
@@ -98,6 +101,7 @@ function CraftingProfile:new(args)
 	end
 
 	local newCraftingProfile = {
+		id = args.id or uuid(),
 		name = args.name,
 		inv_type = args.inv_type,
 		recipes = args.recipes or {},
@@ -152,18 +156,13 @@ function CraftingProfile:addRecipe(recipe_args)
 
 	local recipe = CraftingRecipe:new(recipe_args)
 
-	self.recipes[#self.recipes+1] = recipe
+	self.recipes[recipe.id] = recipe
 end
 
-function CraftingProfile:removeRecipe(name)
-	for i,recipe in ipairs(self.recipes) do
-		if recipe.name == name then
-			table.remove(self.recipes, i)
-			return
-		end
-	end
+function CraftingProfile:removeRecipe(recipe)
+	self.recipes[recipe.id] = nil
 
-	error('No recipe '..name..' found')
+	error('No recipe '..recipe.name..' found')
 end
 
 
@@ -473,7 +472,7 @@ function CraftingCluster:dataPath()
 end
 
 function CraftingCluster:saveData()
-	local profiles = array_map(self.profiles, function(profile) return profile:serialize() end)
+	local profiles = table_map(self.profiles, function(profile) return profile:serialize() end)
 
 	local inv_names = array_map(self.invs, function(inv) return inv.name end)
 
@@ -489,7 +488,7 @@ function CraftingCluster:loadData(data)
 	data = textutils.unserialize(data)
 
 	local profiles = {}
-	for _,serialized_profile in ipairs(data.profiles) do
+	for _,serialized_profile in pairs(data.profiles) do
 		local profile = CraftingProfile:fromSerialized(serialized_profile)
 		profiles[#profiles+1] = profile
 	end
@@ -547,22 +546,22 @@ function CraftingCluster:_addRecipeData(recipe)
 end
 
 function CraftingCluster:_addProfileData(profile)
-	for _,recipe in ipairs(profile.recipes) do
+	for _,recipe in pairs(profile.recipes) do
 		local extended_recipe = table_shallowcopy(recipe)
-		extended_recipe.profile_name = profile.name
+		extended_recipe.profile = profile.id
 		self:_addRecipeData(extended_recipe)
 	end
 end
 
 function CraftingCluster:addProfile(profile)
 	-- local profile_names = array_map(self.profiles, function(_profile) return _profile.name end)
-	local i = array_find(self.profiles, function(_profile) return _profile.name == profile.name end)
-	if i then
-		error('Profile'..profile.name..' already present in cluster '..self.name)
+	local id = table_find(self.profiles, function(_profile) return _profile.name == profile.name end)
+	if id then
+		error('Profile '..profile.name..' already present in cluster '..self.name)
 	end
 
 	self:_addProfileData(profile)
-	table.insert(self.profiles, profile)
+	self.profiles[profile.id] = profile
 end
 
 function CraftingCluster:_removeRecipeData(recipe)
@@ -580,19 +579,19 @@ function CraftingCluster:_removeRecipeData(recipe)
 end
 
 function CraftingCluster:_removeProfileData(profile)
-	for _,recipe in ipairs(profile.recipes) do
+	for _,recipe in pairs(profile.recipes) do
 		self:_removeRecipeData(recipe)
 	end
 end
 
 function CraftingCluster:removeProfile(profile)
-	local i = array_find(self.profiles, function(_profile) return _profile.name == profile.name end)
-	if not i then
+	local id = table_find(self.profiles, function(_profile) return _profile.name == profile.name end)
+	if not id then
 		error('Profile'..profile.name..' not present in cluster '..self.name)
 	end
 
 	self:_removeProfileData(profile)
-	table.remove(self.profiles, i)
+	self.profiles[id] = nil
 end
 
 function CraftingCluster:_createInventory(args)
@@ -605,7 +604,7 @@ end
 function CraftingCluster:_refreshInternals()
 	self.item_recipes = {}
 
-	for _,profile in ipairs(self.profiles) do
+	for _,profile in pairs(self.profiles) do
 		self:_addProfileData(profile)
 	end
 end
@@ -629,8 +628,8 @@ end
 function CraftingCluster:itemNames()
 	local item_names = {}
 
-	for _,profile in ipairs(self.profiles) do
-		for _,recipe in ipairs(profile.recipes) do
+	for _,profile in pairs(self.profiles) do
+		for _,recipe in pairs(profile.recipes) do
 			for _,slot_data in pairs(recipe.slots) do
 				if slot_data.type == SLOT_TYPE.OUTPUT then
 					item_names[#item_names+1] = slot_data.item_name
@@ -781,12 +780,12 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 
 	local recipe = crafting_tree.this.recipe
 	local crafting_count = crafting_tree.this.count
-	local profile_name = recipe.profile_name
+	local profile_id = recipe.profile
 
-	local _, profile = array_find(self.profiles, function(_profile) return _profile.name == profile_name end)
+	local profile = self.profiles[profile_id]
 
 	if not profile then
-		error('Profile '..profile_name..' not found in cluster '..self.name)
+		error('Profile '..profile_id..' not found in cluster '..self.name)
 	end
 
 	local inv_type = profile.inv_type

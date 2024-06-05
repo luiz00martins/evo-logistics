@@ -1,6 +1,8 @@
 local utils = require('/logos-library.utils.utils')
 local new_class = require('/logos-library.utils.class').new_class
 
+local uuid = utils.uuid
+
 local DEFAULT_LOG = require('/logos-library.utils.log').empty()
 
 local function _executeTransactionOperation(args)
@@ -223,6 +225,7 @@ function AbstractInventory:new(args)
 	if args.parent == nil then error("missing parameter `parent`") end
 
 	local new_inventory = {
+		id = args.id or uuid(),
 		name = args.name,
 		parent = args.parent,
 		slots = {},
@@ -258,11 +261,12 @@ AbstractInventory.pullItems = pullItems
 local AbstractCluster = new_class()
 function AbstractCluster:new(args)
 	local new_cluster = {
-			name = args.name or '',
-			invs = args.invs or {},
-			component_type = 'cluster',
-			log = args.log or DEFAULT_LOG,
-		}
+		id = args.id or uuid(),
+		name = args.name or '',
+		invs = args.invs or {},
+		component_type = 'cluster',
+		log = args.log or DEFAULT_LOG,
+	}
 
 	setmetatable(new_cluster, self)
 	return new_cluster

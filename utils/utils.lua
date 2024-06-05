@@ -381,6 +381,17 @@ local function array_find(arr, fn, start)
 end
 _M.array_find = array_find
 
+local function table_find(tab, fn, start)
+	for k,v in pairs(tab) do
+		if fn(v) then
+			return k, v
+		end
+	end
+
+	return nil
+end
+_M.table_find = table_find
+
 local function array_unique(arr)
 	local unique = {}
 	local keys = {}
@@ -539,6 +550,16 @@ local function log_error(fn)
 	return ret
 end
 _M.log_error = log_error
+
+local random = math.random
+local function uuid()
+    local template ='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
+    return string.gsub(template, '[xy]', function (c)
+        local v = (c == 'x') and random(0, 0xf) or random(8, 0xb)
+        return string.format('%x', v)
+    end)
+end
+_M.uuid = uuid
 
 -- Returning functions.
 return _M
