@@ -121,8 +121,10 @@ inventory_api_functions.pushItems = function(output_inv_name, input_inv_name, ou
 	end
 
 	-- Updating inventories.
-	output_inv:update()
-	input_inv:update()
+	if not peripheral.tick_frozen then
+		output_inv:update()
+		input_inv:update()
+	end
 
 	output_inv.was_used = true
 	input_inv.was_used = true
@@ -337,8 +339,10 @@ inventory_api_functions.pushItem = function(output_inv_name, input_inv_name, ite
 	_remove_item(output_inv, item_name, moved)
 
 	-- Updating inventories.
-	output_inv:update()
-	input_inv:update()
+	if not peripheral.tick_frozen then
+		output_inv:update()
+		input_inv:update()
+	end
 
 	output_inv.was_used = true
 	input_inv.was_used = true
