@@ -166,7 +166,7 @@ function CraftingProfile:removeRecipe(recipe)
 end
 
 
-local CRAFTING_STATUS = {
+local INV_CRAFTING_STATUS = {
 	IDLE = 'idle',
 	TEMPLATED = 'templated',
 	CRAFTING = 'crafting',
@@ -187,14 +187,14 @@ function CraftingInventory:new(args)
 		setmetatable(new_inventory, ShapelessCraftingInventory)
 	end
 
-	new_inventory.status = CRAFTING_STATUS.IDLE
+	new_inventory.status = INV_CRAFTING_STATUS.IDLE
 	new_inventory.executing_amount = 0
 
 	return new_inventory
 end
 
 function ShapedCraftingInventory:startRecipe(recipe, storage_clusters)
-	if self.status ~= CRAFTING_STATUS.IDLE then
+	if self.status ~= INV_CRAFTING_STATUS.IDLE then
 		error('Already started a recipe for '..self.executing_recipe.name)
 	end
 
@@ -205,21 +205,21 @@ function ShapedCraftingInventory:startRecipe(recipe, storage_clusters)
 
 	self:_retrieveItems(templates)
 
-	self.status = CRAFTING_STATUS.TEMPLATED
+	self.status = INV_CRAFTING_STATUS.TEMPLATED
 end
 ShapelessCraftingInventory.startRecipe = ShapedCraftingInventory.startRecipe
 
 function ShapedCraftingInventory:executeRecipe()
-	if self.status == CRAFTING_STATUS.IDLE then
+	if self.status == INV_CRAFTING_STATUS.IDLE then
 		error('No recipe to execute')
-	elseif self.status == CRAFTING_STATUS.EXECUTING then
+	elseif self.status == INV_CRAFTING_STATUS.CRAFTING then
 		error('Already executing recipe for '..self.executing_recipe.name)
 	end
 
 	local inputs = array_map(self.executing_recipe.slots, function(slot) if slot.type == SLOT_TYPE.INPUT then return slot end end)
 
 	if self:_retrieveItems(inputs) then
-		self.status = CRAFTING_STATUS.CRAFTING
+		self.status = INV_CRAFTING_STATUS.CRAFTING
 		self.executing_amount = self.executing_amount + 1
 
 		return true
@@ -231,10 +231,10 @@ end
 ShapelessCraftingInventory.executeRecipe = ShapedCraftingInventory.executeRecipe
 
 function ShapedCraftingInventory:awaitRecipe()
-	if self.status == CRAFTING_STATUS.IDLE then
+	if self.status == INV_CRAFTING_STATUS.IDLE then
 		error('No recipe to await')
-	elseif self.status == CRAFTING_STATUS.TEMPLATED
-			or self.status == CRAFTING_STATUS.CRAFTED then
+	elseif self.status == INV_CRAFTING_STATUS.TEMPLATED
+			or self.status == INV_CRAFTING_STATUS.CRAFTED then
 		return
 	end
 
@@ -249,14 +249,14 @@ function ShapedCraftingInventory:awaitRecipe()
 		until output_slot:itemCount() >= slot_data.amount
 	end
 
-	self.status = CRAFTING_STATUS.CRAFTED
+	self.status = INV_CRAFTING_STATUS.CRAFTED
 end
 
 function ShapelessCraftingInventory:awaitRecipe()
-	if self.status == CRAFTING_STATUS.IDLE then
+	if self.status == INV_CRAFTING_STATUS.IDLE then
 		error('No recipe to await')
-	elseif self.status == CRAFTING_STATUS.TEMPLATED
-			or self.status == CRAFTING_STATUS.CRAFTED then
+	elseif self.status == INV_CRAFTING_STATUS.TEMPLATED
+			or self.status == INV_CRAFTING_STATUS.CRAFTED then
 		return
 	end
 
@@ -271,7 +271,7 @@ function ShapelessCraftingInventory:awaitRecipe()
 	end
 
 
-	self.status = CRAFTING_STATUS.CRAFTED
+	self.status = INV_CRAFTING_STATUS.CRAFTED
 end
 
 function ShapedCraftingInventory:finishRecipe()
@@ -283,12 +283,12 @@ function ShapedCraftingInventory:finishRecipe()
 	self.executing_amount = self.executing_amount - 1
 
 	if self.executing_amount == 0 then
-		self.status = CRAFTING_STATUS.IDLE
+		self.status = INV_CRAFTING_STATUS.IDLE
 
 		self.executing_recipe = nil
 		self.storage_clusters = nil
 	else
-		self.status = CRAFTING_STATUS.CRAFTING
+		self.status = INV_CRAFTING_STATUS.CRAFTING
 	end
 end
 ShapelessCraftingInventory.finishRecipe = ShapedCraftingInventory.finishRecipe
@@ -714,11 +714,19 @@ function CraftingCluster:calculateMissingItems(item_name, amount, craft_list)
 	return missing_items
 end
 
+local CRAFTING_NODE_STATUS = {
+	WAITING = "waiting",
+	CRAFTING = "crafting",
+	FINISHED = "finished",
+	FAILED = "failed",
+}
+
 function CraftingCluster:createCraftingTree(item_name, amount, craft_list)
 	local crafting_tree = {
 		this = {
 			recipe = nil,
 			count = nil,
+			status = CRAFTING_NODE_STATUS.WAITING,
 		},
 		children = {},
 	}
@@ -772,16 +780,7 @@ function CraftingCluster:createCraftingTree(item_name, amount, craft_list)
 	return crafting_tree
 end
 
-
-function CraftingCluster:executeCraftingTree(crafting_tree)
-	for _,ct in ipairs(crafting_tree.children) do
-		self:executeCraftingTree(ct)
-	end
-
-	local recipe = crafting_tree.this.recipe
-	local crafting_count = crafting_tree.this.count
-	local profile_id = recipe.profile
-
+function CraftingCluster:findAvailableCraftingInventories(profile_id)
 	local profile = self.profiles[profile_id]
 
 	if not profile then
@@ -792,66 +791,125 @@ function CraftingCluster:executeCraftingTree(crafting_tree)
 
 	local invs = self.invs
 	invs = array_filter(invs, function(inv) return inventory_type(inv.name) == inv_type end)
+	invs = array_filter(invs, function(inv) return inv.status == INV_CRAFTING_STATUS.IDLE end)
 	if profile.whitelist_invs then
 		invs = array_filter(invs, function(inv) return profile.whitelist_invs[inv.name] end)
 	elseif profile.blacklist_invs then
 		invs = array_filter(invs, function(inv) return not profile.blacklist_invs[inv.name] end)
 	end
 
-	if #invs == 0 then
-		error('No available crafting inventories found in '..self.name..' for crafting '..recipe.name..' in profile '..profile.name)
-	end
+	return invs
+end
 
-	local amount_of_invs_used = math.min(#invs, crafting_count)
-	local inventory_crafting_count = table_map2(invs, function(_, inv) return inv.name, 0 end)
-	local craftings_issued = 0
+function CraftingCluster:executeCraftingNode(crafting_node)
+	local function craft()
+		local recipe = crafting_node.this.recipe
+		local total_crafting_count = crafting_node.this.count
+		local profile_id = recipe.profile
 
-	self.log.info('Executing crafting recipe '..recipe.name.. ' x'..crafting_count)
+		local invs = self:findAvailableCraftingInventories(profile_id)
 
-	-- Executing crafting recipe.
-	while craftings_issued < crafting_count do
-		-- Starting up craftings.
-		for i = 1, amount_of_invs_used do
-			local inv = invs[i]
-			inv:startRecipe(recipe, self.storage_clusters)
+		if #invs == 0 then
+			crafting_node.status = CRAFTING_NODE_STATUS.FAILED
+			error('No available crafting inventories found in '..self.name..' for crafting '..recipe.name..' in profile '..self.profiles[profile_id].name)
 		end
 
-		-- Executing craftings.
-		local crafting_complete = false
-		while not crafting_complete do
-			crafting_complete = true
-			local function executeCraftingForInventory(inv)
-				if craftings_issued < crafting_count and inv:executeRecipe(recipe, self.storage_clusters) then
-					inventory_crafting_count[inv.name] = inventory_crafting_count[inv.name] + 1
-					craftings_issued = craftings_issued + 1
-					crafting_complete = false
+		local function distributeEvenly(total, bins)
+			local result = {}
+			local each = math.floor(total / bins)
+			local remainder = total % bins
+
+			for i = 1, bins do
+				if remainder > 0 then
+					result[i] = each + 1
+					remainder = remainder - 1
+				else
+					result[i] = each
 				end
 			end
 
-			-- NOTE: This slice decides the 
-			local active_invs = array_slice(invs, 1, math.min(#invs, crafting_count - craftings_issued))
-
-			parallel.waitForAll(
-				table.unpack(array_map(active_invs, function(inv) return function() executeCraftingForInventory(inv) end end))
-			)
+			return result
 		end
 
-		-- Finishing craftings.
-		for i = 1, amount_of_invs_used do
-			local inv = invs[i]
+		local function executeCraftingForInventory(inv, crafting_count)
+			self.log.info('Executing crafting recipe '..recipe.name.. ' x'..crafting_count)
 
-			self.log.info('Finishing crafting recipe '..recipe.name.. ' x'..crafting_count)
+			local total_craftings_issued = 0
+			while total_craftings_issued < crafting_count do
+				inv:startRecipe(recipe, self.storage_clusters)
 
-			for j = 1, inventory_crafting_count[inv.name] do
+				if inv:executeRecipe(recipe, self.storage_clusters) == 0 then
+					crafting_node.status = CRAFTING_NODE_STATUS.FAILED
+					error('No craftings issued for inventory '..inv.name)
+				end
+
 				inv:awaitRecipe()
 				inv:finishRecipe()
 
-				inventory_crafting_count[inv.name] = inventory_crafting_count[inv.name] - 1
+				total_craftings_issued = total_craftings_issued + 1
 			end
 
 			self.log.info('Finished crafting recipe '..recipe.name.. ' x'..crafting_count)
 		end
+
+		local distributed_crafting_counts = distributeEvenly(total_crafting_count, #invs)
+		parallel.waitForAll(table.unpack(array_map(invs, function(inv, i)
+			return function()
+				local count_for_this_inv = distributed_crafting_counts[i]
+				executeCraftingForInventory(inv, count_for_this_inv)
+			end
+		end)))
 	end
+
+	if #crafting_node.children == 0 then
+		crafting_node.status = CRAFTING_NODE_STATUS.CRAFTING
+		craft()
+		if crafting_node.status == CRAFTING_NODE_STATUS.FAILED then
+			return
+		end
+		crafting_node.status = CRAFTING_NODE_STATUS.FINISHED
+	else
+		local all_finished = false
+		while not all_finished do
+			all_finished = true
+			for _,child in ipairs(crafting_node.children) do
+				if child.status ~= CRAFTING_NODE_STATUS.FINISHED then
+					all_finished = false
+				end
+			end
+
+			for _,child in ipairs(crafting_node.children) do
+				if child.status == CRAFTING_NODE_STATUS.FAILED then
+					crafting_node.status = CRAFTING_NODE_STATUS.FAILED
+					return
+				end
+			end
+			os.sleep(0)
+		end
+
+		crafting_node.status = CRAFTING_NODE_STATUS.CRAFTING
+		craft()
+		if crafting_node.status == CRAFTING_NODE_STATUS.FAILED then
+			return
+		end
+		crafting_node.status = CRAFTING_NODE_STATUS.FINISHED
+	end
+end
+
+function CraftingCluster:executeCraftingTree(crafting_tree)
+	local function collectAllNodes(node, all_nodes)
+		table.insert(all_nodes, node)
+		for _, child in ipairs(node.children) do
+			collectAllNodes(child, all_nodes)
+		end
+	end
+
+	local all_nodes = {}
+	collectAllNodes(crafting_tree, all_nodes)
+
+	parallel.waitForAll(
+		table.unpack(array_map(all_nodes, function(node) return function() self:executeCraftingNode(node) end end))
+	)
 end
 
 function CraftingCluster:waitCrafting(inv, to_slot, item_name, amount)

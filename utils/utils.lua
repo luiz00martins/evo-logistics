@@ -483,7 +483,7 @@ _M.table_reduce = table_reduce
 local function array_map(array, fn)
 	local new_array = {}
 	for i, v in ipairs(array) do
-		new_array[i] = fn(v)
+		new_array[i] = fn(v, i)
 	end
 	return new_array
 end
@@ -492,7 +492,7 @@ _M.array_map = array_map
 local function table_map(table, fn)
 	local new_table = {}
 	for k, v in pairs(table) do
-		new_table[k] = fn(v)
+		new_table[k] = fn(v, k)
 	end
 	return new_table
 end

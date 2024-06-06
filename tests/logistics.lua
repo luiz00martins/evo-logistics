@@ -79,13 +79,13 @@ local function test_module()
 			name = 'Wooden Planks',
 			is_shaped = true,
 			slots = {
-				[1] = {
+				{
 					index = 1,
 					type = 'input',
 					item_name = 'minecraft:oak_log',
 					amount = 1,
 				},
-				[10] = {
+				{
 					index = 10,
 					type = 'output',
 					item_name = 'minecraft:oak_planks',
@@ -101,19 +101,19 @@ local function test_module()
 			name = 'Advanced Circuit',
 			is_shaped = true,
 			slots = {
-				[1] = {
+				{
 					index = 1,
 					type = 'input',
 					item_name = 'techreborn:silicon_plate',
 					amount = 1,
 				},
-				[2] = {
+				{
 					index = 2,
 					type = 'input',
 					item_name = 'techreborn:electrum_plate',
 					amount = 2,
 				},
-				[3] = {
+				{
 					index = 3,
 					type = 'output',
 					item_name = 'techreborn:advanced_circuit',
@@ -235,20 +235,79 @@ local function test_module()
 			expect(main_cluster:itemCount('techreborn:advanced_circuit')).toEqual(4)
 		end)
 
-		test('multiple stations', function(expect)
+		test('multiple crafting stations', function(expect)
 			reset()
+			peripheral.custom.tick_freeze(true)
 			peripheral.custom.add_inventory('techreborn:assembly_machine_1')
 			crafting_cluster:registerInventory{name = 'techreborn:assembly_machine_1'}
 			peripheral.custom.produce_item('minecraft:barrel_0', 1, 'techreborn:silicon_plate', 4)
 			peripheral.custom.produce_item('minecraft:barrel_0', 2, 'techreborn:electrum_plate', 8)
 			main_cluster:refresh()
-			expect(peripheral.custom.was_used('techreborn:assembly_machine_0')).toEqual(false)
-			expect(peripheral.custom.was_used('techreborn:assembly_machine_1')).toEqual(false)
-			crafting_cluster:executeCraftingTree(
-				crafting_cluster:createCraftingTree('techreborn:advanced_circuit', 2)
+			local found_all = false
+			parallel.waitForAny(
+				function()
+					crafting_cluster:executeCraftingTree(
+						crafting_cluster:createCraftingTree('techreborn:advanced_circuit', 2)
+					)
+				end,
+				function()
+					while #peripheral.call('techreborn:assembly_machine_0', 'list') == 0 do
+						os.sleep(0)
+					end
+					expect(peripheral.call('techreborn:assembly_machine_0', 'list')[1].name).toEqual('techreborn:silicon_plate')
+					expect(peripheral.call('techreborn:assembly_machine_0', 'list')[1].count).toEqual(1)
+					expect(peripheral.call('techreborn:assembly_machine_1', 'list')[1].name).toEqual('techreborn:silicon_plate')
+					expect(peripheral.call('techreborn:assembly_machine_1', 'list')[1].count).toEqual(1)
+					expect(peripheral.call('techreborn:assembly_machine_0', 'list')[2].name).toEqual('techreborn:electrum_plate')
+					expect(peripheral.call('techreborn:assembly_machine_0', 'list')[2].count).toEqual(2)
+					expect(peripheral.call('techreborn:assembly_machine_1', 'list')[2].name).toEqual('techreborn:electrum_plate')
+					expect(peripheral.call('techreborn:assembly_machine_1', 'list')[2].count).toEqual(2)
+					found_all = true
+				end,
+				function()
+					os.sleep(0.01)
+				end
 			)
-			expect(peripheral.custom.was_used('techreborn:assembly_machine_0')).toEqual(true)
-			expect(peripheral.custom.was_used('techreborn:assembly_machine_1')).toEqual(true)
+			expect(found_all).toBeTruthy()
+		end)
+
+		test('multiple crafting recipes', function(expect)
+			reset()
+			peripheral.custom.tick_freeze(true)
+			peripheral.custom.produce_item('minecraft:barrel_0', 1, 'techreborn:silicon_plate', 1)
+			peripheral.custom.produce_item('minecraft:barrel_0', 2, 'techreborn:electrum_plate', 2)
+			peripheral.custom.produce_item('minecraft:barrel_0', 3, 'minecraft:oak_log', 1)
+			main_cluster:refresh()
+			local found_all = false
+			parallel.waitForAny(
+				function()
+					crafting_cluster:executeCraftingTree(
+						crafting_cluster:createCraftingTree('techreborn:advanced_circuit', 1)
+					)
+				end,
+				function()
+					crafting_cluster:executeCraftingTree(
+						crafting_cluster:createCraftingTree('minecraft:oak_planks', 1)
+					)
+				end,
+				function()
+					while #peripheral.call('techreborn:assembly_machine_0', 'list') == 0
+							or #peripheral.call('techreborn:auto_crafting_table_0', 'list') == 0 do
+						os.sleep(0)
+					end
+					expect(peripheral.call('techreborn:assembly_machine_0', 'list')[1].name).toEqual('techreborn:silicon_plate')
+					expect(peripheral.call('techreborn:assembly_machine_0', 'list')[1].count).toEqual(1)
+					expect(peripheral.call('techreborn:assembly_machine_0', 'list')[2].name).toEqual('techreborn:electrum_plate')
+					expect(peripheral.call('techreborn:assembly_machine_0', 'list')[2].count).toEqual(2)
+					expect(peripheral.call('techreborn:auto_crafting_table_0', 'list')[1].name).toEqual('minecraft:oak_log')
+					expect(peripheral.call('techreborn:auto_crafting_table_0', 'list')[1].count).toEqual(1)
+					found_all = true
+				end,
+				function()
+					os.sleep(0.01)
+				end
+			)
+			expect(found_all).toBeTruthy()
 		end)
 	end)
 
