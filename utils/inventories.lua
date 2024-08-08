@@ -13,7 +13,7 @@ local function get_modem_side(is_wireless)
 		error('wirelessness should be specified')
 	end
 
-	for _, side in pairs(rs.getSides()) do
+	for _, side in pairs(redstone.getSides()) do
 		if peripheral.isPresent(side)
 				and peripheral.getType(side) == "modem"
 				and (is_wireless == nil or peripheral.call(side, "isWireless") == is_wireless) then

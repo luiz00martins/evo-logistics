@@ -37,6 +37,9 @@ local test_module = function()
       local old_cache = test_autosave.cache
       local file = fs.open(path, 'r')
       local data = file.readAll()
+      if data == nil then
+        error('File not found')
+      end
       file.close()
       fs.delete(path)
       local new_cache = textutils.unserialize(data)

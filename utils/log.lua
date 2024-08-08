@@ -5,6 +5,9 @@
 -- This library is free software; you can redistribute it and/or modify it
 -- under the terms of the MIT license. See LICENSE for details.
 
+---@alias VariadicFunction fun(...: any)
+---@alias Log {version: string, usecolor: boolean, level: string, outfile?: string, trace: VariadicFunction, debug: VariadicFunction, info: VariadicFunction, warning: VariadicFunction, error: VariadicFunction, fatal: VariadicFunction}
+
 local VERSION = "0.1.0"
 
 local MODES = {
@@ -24,12 +27,13 @@ end
 local _M = {}
 
 function _M.print()
+	---@type Log
 	local log = { _version = VERSION }
 
 	log.usecolor = false
 	log.level = "trace"
 
-	local tostring = require('utils').tostring
+	local tostring = require('/logos-library.utils.utils').tostring
 
 	for i, x in ipairs(MODES) do
 		local name = x.pretty_name or x.name
@@ -57,6 +61,7 @@ function _M.print()
 end
 
 function _M.file(outfile)
+	---@type Log
 	local log = { _version = VERSION }
 
 	log.usecolor = false
@@ -95,6 +100,7 @@ function _M.file(outfile)
 end
 
 function _M.empty()
+	---@type Log
 	local log = { _version = VERSION}
 
 	for i, x in ipairs(MODES) do
