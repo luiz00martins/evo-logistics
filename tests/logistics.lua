@@ -1,4 +1,4 @@
-local ut = require('cc-ut')
+local Ut = require("cc-ut")
 local utils = require('/logos-library.utils.utils')
 local core = require('/logos-library.core.abstract')
 local bulk = require('/logos-library.core.bulk')
@@ -6,6 +6,7 @@ local standard = require('/logos-library.core.standard')
 local crafting = require('/logos-library.core.crafting')
 local interface = require('/logos-library.core.interface')
 
+local ut = Ut()
 local test = ut.test
 local describe = ut.describe
 

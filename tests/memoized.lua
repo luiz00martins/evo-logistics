@@ -1,5 +1,6 @@
-local ut = require("cc-ut")
+local Ut = require("cc-ut")
 
+local ut = Ut()
 local describe = ut.describe
 
 local Memoized = require('/logos-library.utils.memoized').Memoized

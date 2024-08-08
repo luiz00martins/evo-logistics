@@ -1,8 +1,9 @@
-local ut = require("cc-ut")
+local Ut = require("cc-ut")
 
 local utils = require('/logos-library.utils.utils')
 local inv_utils = require('/logos-library.utils.inventories')
 
+local ut = Ut()
 local describe = ut.describe
 
 local table_deepcopy = utils.table_deepcopy
