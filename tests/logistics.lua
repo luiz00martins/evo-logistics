@@ -32,7 +32,7 @@ local function test_module()
 	local crafting_cluster
 	local interface_cluster
 
-	local log = require('/logos-library.utils.log').file('/tests.log')
+	local log = require('/cc-log').file('/tests.log')
 
 	local function reset()
 		main_cluster = StandardCluster:new{

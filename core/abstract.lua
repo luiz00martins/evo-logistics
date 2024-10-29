@@ -3,7 +3,7 @@ local new_class = require('/logos-library.utils.class').new_class
 
 local uuid = utils.uuid
 
-local DEFAULT_LOG = require('/logos-library.utils.log').empty()
+local DEFAULT_LOG = require('/cc-log').empty()
 
 local function _executeTransactionOperation(args)
 	-- Validating arguments.

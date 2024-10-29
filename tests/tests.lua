@@ -3,7 +3,7 @@ local logistics = require('/logos-library.tests.logistics')
 local memoized = require('/logos-library.tests.memoized')
 local dbg = require('/debugger')
 
-local log = require('/logos-library.utils.log').file('/log.log')
+local log = require('/cc-log').file('/log.log')
 
 local function test_all()
 	print('Testing mock: memoized')
