@@ -23,6 +23,7 @@ local CraftingProfile = crafting.CraftingProfile
 
 local function test_module()
 	local original_peripheral = peripheral
+	---@diagnostic disable-next-line: lowercase-global
 	peripheral = require('/logos-library.tests.mocks.peripheral')
 
 	local main_cluster
