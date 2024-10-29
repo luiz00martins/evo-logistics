@@ -1,4 +1,4 @@
-local Ut = require("cc-ut")
+local Ut = require("/cc-ut")
 
 local utils = require('/logos-library.utils.utils')
 local inv_utils = require('/logos-library.utils.inventories')
