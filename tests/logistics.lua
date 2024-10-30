@@ -363,6 +363,7 @@ local function test_module()
 	-- 	crafting_cluster:createCraftingTree('minecraft:oak_planks', 4)
 	-- )
 
+	---@diagnostic disable-next-line: lowercase-global
 	peripheral = original_peripheral
 end
 
