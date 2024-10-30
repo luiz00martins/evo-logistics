@@ -84,6 +84,7 @@ local function test_module()
 			name = 'Auto Crafting Table',
 			inv_type = 'techreborn:auto_crafting_table',
 		}
+
 		act_profile:addRecipe{
 			name = 'Wooden Planks',
 			is_shaped = true,
@@ -102,10 +103,12 @@ local function test_module()
 				},
 			},
 		}
+
 		local am_profile = CraftingProfile:new{
 			name = 'Assembly Machine',
 			inv_type = 'techreborn:assembly_machine',
 		}
+
 		am_profile:addRecipe{
 			name = 'Advanced Circuit',
 			is_shaped = true,
@@ -130,18 +133,21 @@ local function test_module()
 				},
 			},
 		}
+
 		crafting_cluster:addProfile(act_profile)
 		crafting_cluster:addProfile(am_profile)
 	end
 
 	test('refreshing', function(expect)
 		reset()
+
 		produce_item('minecraft:barrel_0', 1, 'minecraft:coal', 64)
 		produce_item('minecraft:barrel_0', 2, 'minecraft:coal', 32)
 		produce_item('minecraft:barrel_0', 3, 'minecraft:coal', 16)
 		produce_item('minecraft:barrel_0', 4, 'minecraft:ender_pearl', 16)
 		produce_item('minecraft:barrel_0', 5, 'minecraft:ender_pearl', 10)
 		produce_item('minecraft:barrel_0', 6, 'minecraft:wooden_sword', 1)
+
 		main_cluster:catalog()
 
 		expect(main_cluster:hasItem('minecraft:wooden_sword')).toEqual(true)
@@ -152,27 +158,37 @@ local function test_module()
 	describe('moving items', function(test)
 		test('moving from IO to main storage', function(expect)
 			reset()
+
 			produce_item('minecraft:chest_0', 1, 'minecraft:coal', 40)
+
 			io_cluster:refresh()
+
 			expect(io_cluster:hasItem('minecraft:coal')).toEqual(true)
 			expect(io_cluster:itemCount('minecraft:coal')).toEqual(40)
 			expect(transfer(io_cluster, main_cluster)).toEqual(40)
 			expect(io_cluster:itemCount('minecraft:coal')).toEqual(0)
 			expect(main_cluster:itemCount('minecraft:coal')).toEqual(40)
+
 			produce_item('minecraft:chest_0', 1, 'minecraft:iron_ingot', 30)
 			produce_item('minecraft:chest_0', 2, 'minecraft:coal', 20)
+
 			io_cluster:refresh()
+
 			expect(transfer(io_cluster, main_cluster)).toEqual(50)
 			expect(main_cluster:itemCount('minecraft:iron_ingot')).toEqual(30)
 		end)
 
 		test('inputting to all clusters', function(expect)
 			reset()
+
 			bulk_cluster:registerItem('minecraft:coal')
+
 			-- Generating dummy output cluster.
 			add_inventory('minecraft:barrel_1')
+
 			local output_cluster = StandardCluster:new{name = 'Dummy Cluster'}
 			output_cluster:registerInventory{name = 'minecraft:barrel_1'}
+
 			-- Inputting to all clusters.
 			for _,cluster in ipairs({main_cluster, bulk_cluster, io_cluster}) do
 				produce_item('minecraft:barrel_1', 1, 'minecraft:coal', 10)
@@ -184,10 +200,13 @@ local function test_module()
 
 		test('outputting from all clusters', function(expect)
 			reset()
+
 			-- Generating dummy input cluster.
 			add_inventory('minecraft:barrel_1')
+
 			local input_cluster = StandardCluster:new{name = 'Dummy Cluster'}
 			input_cluster:registerInventory{name = 'minecraft:barrel_1'}
+
 			-- Inputting from all clusters.
 			for i,cluster in ipairs({main_cluster, bulk_cluster, io_cluster}) do
 				produce_item(cluster.invs[1].name, 1, 'minecraft:coal', 10)
@@ -200,29 +219,40 @@ local function test_module()
 
 		test('storing to bulk storage', function(expect)
 			reset()
+
 			-- TODO: This transfers twice rn, because the chest is too small. Change this test to use a big barrel from extendedstorage.
 			bulk_cluster:setItemInventory('techreborn:storage_unit_0', 'minecraft:iron_ingot')
+
 			for slot=1,20 do
 				produce_item('minecraft:chest_0', slot, 'minecraft:iron_ingot', 60)
 			end
 			io_cluster:refresh()
+
 			expect(transfer(io_cluster, bulk_cluster, 'minecraft:iron_ingot')).toEqual(1200)
+
 			for slot=1,20 do
 				produce_item('minecraft:chest_0', slot, 'minecraft:iron_ingot', 60)
 			end
+
 			io_cluster:refresh()
+
 			expect(transfer(io_cluster, bulk_cluster, 'minecraft:iron_ingot')).toEqual(976)
+
 			clear_inventory('minecraft:chest_0')
 			clear_inventory('minecraft:barrel_0')
+
 			io_cluster:refresh()
 			main_cluster:refresh()
 		end)
 
 		test('moving from IO to bulk storage', function(expect)
 			reset()
+
 			produce_item('minecraft:chest_0', 1, 'minecraft:oak_log', 64)
+
 			io_cluster:refresh()
 			bulk_cluster:registerItem('minecraft:oak_log')
+
 			expect(transfer(io_cluster, bulk_cluster)).toEqual(64)
 		end)
 	end)
@@ -230,28 +260,39 @@ local function test_module()
 	describe('crafting', function(test)
 		test('normal', function(expect)
 			reset()
+
 			local missing_items = crafting_cluster:calculateMissingItems('techreborn:advanced_circuit', 1)
 			local missing_item_names = array_map(missing_items, function(item) return item.name end)
+
 			expect(array_contains(missing_item_names, 'techreborn:silicon_plate')).toEqual(true)
 			expect(array_contains(missing_item_names, 'techreborn:electrum_plate')).toEqual(true)
+
 			produce_item('minecraft:chest_0', 1, 'techreborn:silicon_plate', 4)
 			produce_item('minecraft:chest_0', 2, 'techreborn:electrum_plate', 8)
+
 			io_cluster:refresh()
+
 			expect(transfer(io_cluster, main_cluster)).toEqual(12)
+
 			crafting_cluster:executeCraftingTree(
 				crafting_cluster:createCraftingTree('techreborn:advanced_circuit', 4)
 			)
+
 			expect(main_cluster:itemCount('techreborn:advanced_circuit')).toEqual(4)
 		end)
 
 		test('multiple crafting stations', function(expect)
 			reset()
+
 			tick_freeze(true)
+
 			add_inventory('techreborn:assembly_machine_1')
 			crafting_cluster:registerInventory{name = 'techreborn:assembly_machine_1'}
+
 			produce_item('minecraft:barrel_0', 1, 'techreborn:silicon_plate', 4)
 			produce_item('minecraft:barrel_0', 2, 'techreborn:electrum_plate', 8)
 			main_cluster:refresh()
+
 			local found_all = false
 			parallel.waitForAny(
 				function()
@@ -263,31 +304,40 @@ local function test_module()
 					while #peripheral.call('techreborn:assembly_machine_0', 'list') == 0 do
 						os.sleep(0)
 					end
+
 					expect(peripheral.call('techreborn:assembly_machine_0', 'list')[1].name).toEqual('techreborn:silicon_plate')
 					expect(peripheral.call('techreborn:assembly_machine_0', 'list')[1].count).toEqual(1)
 					expect(peripheral.call('techreborn:assembly_machine_1', 'list')[1].name).toEqual('techreborn:silicon_plate')
 					expect(peripheral.call('techreborn:assembly_machine_1', 'list')[1].count).toEqual(1)
+
 					expect(peripheral.call('techreborn:assembly_machine_0', 'list')[2].name).toEqual('techreborn:electrum_plate')
 					expect(peripheral.call('techreborn:assembly_machine_0', 'list')[2].count).toEqual(2)
 					expect(peripheral.call('techreborn:assembly_machine_1', 'list')[2].name).toEqual('techreborn:electrum_plate')
 					expect(peripheral.call('techreborn:assembly_machine_1', 'list')[2].count).toEqual(2)
+
 					found_all = true
 				end,
 				function()
 					os.sleep(0.01)
 				end
 			)
+
 			expect(found_all).toBeTruthy()
 		end)
 
 		test('multiple crafting recipes', function(expect)
 			reset()
+
 			tick_freeze(true)
+
 			produce_item('minecraft:barrel_0', 1, 'techreborn:silicon_plate', 1)
 			produce_item('minecraft:barrel_0', 2, 'techreborn:electrum_plate', 2)
 			produce_item('minecraft:barrel_0', 3, 'minecraft:oak_log', 1)
+
 			main_cluster:refresh()
+
 			local found_all = false
+
 			parallel.waitForAny(
 				function()
 					crafting_cluster:executeCraftingTree(
@@ -304,31 +354,36 @@ local function test_module()
 							or #peripheral.call('techreborn:auto_crafting_table_0', 'list') == 0 do
 						os.sleep(0)
 					end
+
 					expect(peripheral.call('techreborn:assembly_machine_0', 'list')[1].name).toEqual('techreborn:silicon_plate')
 					expect(peripheral.call('techreborn:assembly_machine_0', 'list')[1].count).toEqual(1)
 					expect(peripheral.call('techreborn:assembly_machine_0', 'list')[2].name).toEqual('techreborn:electrum_plate')
 					expect(peripheral.call('techreborn:assembly_machine_0', 'list')[2].count).toEqual(2)
 					expect(peripheral.call('techreborn:auto_crafting_table_0', 'list')[1].name).toEqual('minecraft:oak_log')
 					expect(peripheral.call('techreborn:auto_crafting_table_0', 'list')[1].count).toEqual(1)
+
 					found_all = true
 				end,
 				function()
 					os.sleep(0.01)
 				end
 			)
+
 			expect(found_all).toBeTruthy()
 		end)
 	end)
 
 	describe('corner cases', function(test)
 		test('stacking', function(expect)
-			-- The items are added one by one...
 			reset()
+
+			-- The items are added one by one...
 			for _=1,20 do
 				produce_item('minecraft:chest_0', 1, 'minecraft:stick')
 				io_cluster:refresh()
 				transfer(io_cluster, main_cluster)
 			end
+
 			-- ...but they should stack inside the inventory.
 			expect(peripheral.call('minecraft:barrel_0', 'list')[1].count).toEqual(20)
 		end)
@@ -337,6 +392,7 @@ local function test_module()
 
 	-- test_utils.set_title('Testing interface active import')
 	-- reset()
+	--
 	--
 	-- produce_item(main_cluster.invs[1].name, 1, 'minecraft:coal', 60)
 	-- main_cluster:refresh()
