@@ -138,9 +138,11 @@ local function test_module()
 		crafting_cluster:addProfile(am_profile)
 	end
 
-	test('refreshing', function(expect)
+	ut.beforeEach(function()
 		reset()
+	end)
 
+	test('refreshing', function(expect)
 		produce_item('minecraft:barrel_0', 1, 'minecraft:coal', 64)
 		produce_item('minecraft:barrel_0', 2, 'minecraft:coal', 32)
 		produce_item('minecraft:barrel_0', 3, 'minecraft:coal', 16)
@@ -157,8 +159,6 @@ local function test_module()
 
 	describe('moving items', function(test)
 		test('moving from IO to main storage', function(expect)
-			reset()
-
 			produce_item('minecraft:chest_0', 1, 'minecraft:coal', 40)
 
 			io_cluster:refresh()
@@ -179,8 +179,6 @@ local function test_module()
 		end)
 
 		test('inputting to all clusters', function(expect)
-			reset()
-
 			bulk_cluster:registerItem('minecraft:coal')
 
 			-- Generating dummy output cluster.
@@ -199,8 +197,6 @@ local function test_module()
 		end)
 
 		test('outputting from all clusters', function(expect)
-			reset()
-
 			-- Generating dummy input cluster.
 			add_inventory('minecraft:barrel_1')
 
@@ -218,8 +214,6 @@ local function test_module()
 		end)
 
 		test('storing to bulk storage', function(expect)
-			reset()
-
 			-- TODO: This transfers twice rn, because the chest is too small. Change this test to use a big barrel from extendedstorage.
 			bulk_cluster:setItemInventory('techreborn:storage_unit_0', 'minecraft:iron_ingot')
 
@@ -246,8 +240,6 @@ local function test_module()
 		end)
 
 		test('moving from IO to bulk storage', function(expect)
-			reset()
-
 			produce_item('minecraft:chest_0', 1, 'minecraft:oak_log', 64)
 
 			io_cluster:refresh()
@@ -259,8 +251,6 @@ local function test_module()
 
 	describe('crafting', function(test)
 		test('normal', function(expect)
-			reset()
-
 			local missing_items = crafting_cluster:calculateMissingItems('techreborn:advanced_circuit', 1)
 			local missing_item_names = array_map(missing_items, function(item) return item.name end)
 
@@ -282,8 +272,6 @@ local function test_module()
 		end)
 
 		test('multiple crafting stations', function(expect)
-			reset()
-
 			tick_freeze(true)
 
 			add_inventory('techreborn:assembly_machine_1')
@@ -326,8 +314,6 @@ local function test_module()
 		end)
 
 		test('multiple crafting recipes', function(expect)
-			reset()
-
 			tick_freeze(true)
 
 			produce_item('minecraft:barrel_0', 1, 'techreborn:silicon_plate', 1)
@@ -375,8 +361,6 @@ local function test_module()
 
 	describe('corner cases', function(test)
 		test('stacking', function(expect)
-			reset()
-
 			-- The items are added one by one...
 			for _=1,20 do
 				produce_item('minecraft:chest_0', 1, 'minecraft:stick')
