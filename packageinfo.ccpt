@@ -1,0 +1,13 @@
+{
+    name = "ComputerCraft Logistics",
+    id = "evo-logistics",
+    comment = "Logistics library for ComputerCraft/CC: Tweaked",
+    author = "Luiz Martins",
+    website = "https://github.com/luiz00martins/evo-logistics",
+    newestversion = "0.0.1",
+    dependencies = {},
+    install = {
+        type = "script",
+        scripturl = "https://raw.githubusercontent.com/luiz00martins/evo-logistics/main/ccpt-install.lua"
+    }
+}
