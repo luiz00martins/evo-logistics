@@ -1,6 +1,6 @@
-local peripheral = require('/logos-library.tests.mocks.peripheral')
-local logistics = require('/logos-library.tests.logistics')
-local memoized = require('/logos-library.tests.memoized')
+local peripheral = require('/evo-logistics/tests/mocks/peripheral')
+local logistics = require('/evo-logistics/tests/logistics')
+local memoized = require('/evo-logistics/tests/memoized')
 local dbg = require('/debugger')
 
 local log = require('/cc-log').file('/log.log')

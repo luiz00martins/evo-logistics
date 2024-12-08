@@ -1,7 +1,7 @@
 local Ut = require("/cc-ut")
 
-local utils = require('/logos-library.utils.utils')
-local inv_utils = require('/logos-library.utils.inventories')
+local utils = require('/evo-logistics/utils/utils')
+local inv_utils = require('/evo-logistics/utils/inventories')
 
 local ut = Ut()
 local describe = ut.describe

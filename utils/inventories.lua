@@ -1,12 +1,12 @@
 local _M = {}
 
-local utils = require('/logos-library.utils.utils')
+local utils = require('/evo-logistics/utils/utils')
 
 local string_split = utils.string_split
 local array_filter = utils.array_filter
 local array_contains = utils.array_contains
 
-local Memoized = require('/logos-library.utils.memoized').Memoized
+local Memoized = require('/evo-logistics/utils/memoized').Memoized
 
 local function get_modem_side(is_wireless)
 	if is_wireless == nil then

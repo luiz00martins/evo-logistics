@@ -3,7 +3,7 @@ local Ut = require("/cc-ut")
 local ut = Ut()
 local describe = ut.describe
 
-local Memoized = require('/logos-library.utils.memoized').Memoized
+local Memoized = require('/evo-logistics/utils/memoized').Memoized
 
 local test_module = function()
   describe('Memoized Module', function(test)
@@ -20,7 +20,7 @@ local test_module = function()
     end)
 
     test("Testing autosave", function(expect)
-      local path = '/logos-library/data/memoized/test_autosave.cache'
+      local path = '/evo-logistics/data/memoized/test_autosave.cache'
       local test_autosave = Memoized:new {
         name = 'test_autosave',
         auto_save = true,

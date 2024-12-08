@@ -1,5 +1,5 @@
-local new_class = require('/logos-library.utils.class').new_class
-local utils = require('/logos-library.utils.utils')
+local new_class = require('/evo-logistics/utils/class').new_class
+local utils = require('/evo-logistics/utils/utils')
 
 local Memoized = new_class()
 
@@ -15,7 +15,7 @@ function Memoized:new(args)
 		name = args.name,
 		fn = args.fn,
 		auto_save = args.auto_save,
-		path = '/logos-library/data/memoized/' .. args.name .. '.cache',
+		path = '/evo-logistics/data/memoized/' .. args.name .. '.cache',
 		cache = {},
 	}
 

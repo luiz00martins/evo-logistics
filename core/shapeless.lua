@@ -1,8 +1,8 @@
 ---@diagnostic disable: need-check-nil
-local utils = require('/logos-library.utils.utils')
-local abstract = require('/logos-library.core.abstract')
+local utils = require('/evo-logistics/utils/utils')
+local abstract = require('/evo-logistics/core/abstract')
 
-local new_class = require('/logos-library.utils.class').new_class
+local new_class = require('/evo-logistics/utils/class').new_class
 local table_contains = utils.table_contains
 
 local AbstractInventory = abstract.AbstractInventory

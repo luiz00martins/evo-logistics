@@ -1,10 +1,10 @@
 local Ut = require("/cc-ut")
-local utils = require('/logos-library.utils.utils')
-local core = require('/logos-library.core.abstract')
-local bulk = require('/logos-library.core.bulk')
-local standard = require('/logos-library.core.standard')
-local crafting = require('/logos-library.core.crafting')
-local interface = require('/logos-library.core.interface')
+local utils = require('/evo-logistics/utils/utils')
+local core = require('/evo-logistics/core/abstract')
+local bulk = require('/evo-logistics/core/bulk')
+local standard = require('/evo-logistics/core/standard')
+local crafting = require('/evo-logistics/core/crafting')
+local interface = require('/evo-logistics/core/interface')
 
 local ut = Ut()
 local test = ut.test
@@ -24,7 +24,7 @@ local CraftingProfile = crafting.CraftingProfile
 local function test_module()
 	local original_peripheral = peripheral
 	---@diagnostic disable-next-line: lowercase-global
-	peripheral = require('/logos-library.tests.mocks.peripheral')
+	peripheral = require('/evo-logistics.tests.mocks.peripheral')
 
 	local peripheral_reset = peripheral.custom.reset
 	local produce_item = peripheral.custom.produce_item

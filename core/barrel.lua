@@ -1,7 +1,7 @@
-local new_class = require('/logos-library.utils.class').new_class
-local utils = require('/logos-library.utils.utils')
-local shapeless = require('/logos-library.core.shapeless')
-local abstract = require('/logos-library.core.abstract')
+local new_class = require('/evo-logistics/utils/class').new_class
+local utils = require('/evo-logistics/utils/utils')
+local shapeless = require('/evo-logistics/core/shapeless')
+local abstract = require('/evo-logistics/core/abstract')
 
 local array_map = utils.array_map
 local table_reduce = utils.table_reduce

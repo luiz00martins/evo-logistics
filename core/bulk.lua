@@ -1,10 +1,10 @@
 ---@diagnostic disable: need-check-nil
-local utils = require('/logos-library.utils.utils')
-local dl_list = require('/logos-library.utils.dl_list')
-local abstract = require('/logos-library.core.abstract')
-local shaped = require('/logos-library.core.shaped')
+local utils = require('/evo-logistics/utils/utils')
+local dl_list = require('/evo-logistics/utils/dl_list')
+local abstract = require('/evo-logistics/core/abstract')
+local shaped = require('/evo-logistics/core/shaped')
 
-local new_class = require('/logos-library.utils.class').new_class
+local new_class = require('/evo-logistics/utils/class').new_class
 local table_reduce = utils.table_reduce
 local array_map = utils.array_map
 

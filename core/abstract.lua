@@ -1,5 +1,5 @@
-local utils = require('/logos-library.utils.utils')
-local new_class = require('/logos-library.utils.class').new_class
+local utils = require('/evo-logistics/utils/utils')
+local new_class = require('/evo-logistics/utils/class').new_class
 
 local uuid = utils.uuid
 

@@ -1,11 +1,11 @@
 ---@diagnostic disable: need-check-nil
-local utils = require('/logos-library.utils.utils')
-local inv_utils = require('/logos-library.utils.inventories')
-local abstract = require('/logos-library.core.abstract')
-local shaped = require('/logos-library.core.shaped')
-local shapeless = require('/logos-library.core.shapeless')
+local utils = require('/evo-logistics/utils/utils')
+local inv_utils = require('/evo-logistics/utils/inventories')
+local abstract = require('/evo-logistics/core/abstract')
+local shaped = require('/evo-logistics/core/shaped')
+local shapeless = require('/evo-logistics/core/shapeless')
 
-local new_class = require('/logos-library.utils.class').new_class
+local new_class = require('/evo-logistics/utils/class').new_class
 local array_find = utils.array_find
 local table_find = utils.table_find
 local array_unique = utils.array_unique
@@ -490,7 +490,7 @@ function CraftingCluster:loadData(data)
 	local profiles = {}
 	for _,serialized_profile in pairs(data.profiles) do
 		local profile = CraftingProfile:fromSerialized(serialized_profile)
-		profiles[#profiles+1] = profile
+		profiles[profile.id] = profile
 	end
 
 	self.profiles	= profiles

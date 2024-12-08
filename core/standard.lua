@@ -1,6 +1,6 @@
-local shaped = require('/logos-library.core.shaped')
+local shaped = require('/evo-logistics/core/shaped')
 
-local new_class = require('/logos-library.utils.class').new_class
+local new_class = require('/evo-logistics/utils/class').new_class
 
 local StandardSlot = new_class(shaped.ShapedSlot)
 local StandardInventory = new_class(shaped.ShapedInventory)

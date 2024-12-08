@@ -1,8 +1,8 @@
-local utils = require('/logos-library.utils.utils')
-local abstract = require('/logos-library.core.abstract')
-local standard = require('/logos-library.core.standard')
+local utils = require('/evo-logistics/utils/utils')
+local abstract = require('/evo-logistics/core/abstract')
+local standard = require('/evo-logistics/core/standard')
 
-local new_class = require('/logos-library.utils.class').new_class
+local new_class = require('/evo-logistics/utils/class').new_class
 local get_order = utils.get_order
 local reversed_ipairs = utils.reversed_ipairs
 
